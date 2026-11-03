@@ -22,7 +22,11 @@ void showResultsDialog(BuildContext context, {required LabOrder order, required 
               Text('Resultados · ${order.id}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Tokens.slate900)),
               const SizedBox(height: 4),
               Text(
-                '$patientName · ordenada el ${dayLabel(branchTime(order.orderedAt))} por ${order.doctorName}',
+                [
+                  patientName,
+                  if (order.orderedAt != null) 'ordenada el ${dayLabel(branchTime(order.orderedAt!))}',
+                  if (order.doctorName != null) 'por ${order.doctorName}',
+                ].join(' · '),
                 style: const TextStyle(color: Tokens.muted, fontSize: 12),
               ),
               for (final detail in order.details) ...[

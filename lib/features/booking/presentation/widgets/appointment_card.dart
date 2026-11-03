@@ -16,9 +16,12 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 };
 
 class AppointmentCard extends StatelessWidget {
-  const AppointmentCard(this.appointment, {super.key});
+  const AppointmentCard(this.appointment, {super.key, this.onCancel});
 
   final Appointment appointment;
+
+  /// Shown only while the appointment still holds its slot.
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +63,18 @@ class AppointmentCard extends StatelessWidget {
                       StatusChip('Retenida hasta las ${timeLabel(branchTime(expires))}', Tokens.warning),
                   ],
                 ),
+                if (onCancel != null && a.holdsSlot) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Tokens.danger,
+                      side: const BorderSide(color: Tokens.danger),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text('Cancelar cita'),
+                  ),
+                ],
               ],
             ),
           ),

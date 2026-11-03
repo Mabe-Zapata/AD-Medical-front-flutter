@@ -10,29 +10,31 @@ class GetMyLabOrders {
   /// is exposed only once the laboratory has validated it. Newest first.
   Future<List<LabOrder>> call(String patientId) async {
     final orders = await _repository.ordersOf(patientId);
-    return [
-      for (final order in orders.where((o) => o.patientId == patientId)) _onlyValidated(order),
-    ]..sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
+    return [for (final order in orders.where((o) => o.patientId == patientId)) onlyValidated(order)]
+      ..sort((a, b) => (b.orderedAt ?? _epoch).compareTo(a.orderedAt ?? _epoch));
   }
 
-  LabOrder _onlyValidated(LabOrder order) => LabOrder(
-    id: order.id,
-    patientId: order.patientId,
-    doctorName: order.doctorName,
-    orderedAt: order.orderedAt,
-    priority: order.priority,
-    status: order.status,
-    notes: order.notes,
-    details: [
-      for (final detail in order.details)
-        OrderDetail(
-          id: detail.id,
-          testName: detail.testName,
-          status: detail.status,
-          sampleTakenAt: detail.sampleTakenAt,
-          resultAt: detail.resultAt,
-          results: detail.validatedResults,
-        ),
-    ],
-  );
+  static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 }
+
+/// The same order with only the results the patient may read.
+LabOrder onlyValidated(LabOrder order) => LabOrder(
+  id: order.id,
+  patientId: order.patientId,
+  doctorName: order.doctorName,
+  orderedAt: order.orderedAt,
+  priority: order.priority,
+  status: order.status,
+  notes: order.notes,
+  details: [
+    for (final detail in order.details)
+      OrderDetail(
+        id: detail.id,
+        testName: detail.testName,
+        status: detail.status,
+        sampleTakenAt: detail.sampleTakenAt,
+        resultAt: detail.resultAt,
+        results: detail.validatedResults,
+      ),
+  ],
+);

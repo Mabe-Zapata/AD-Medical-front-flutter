@@ -1,31 +1,82 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/session.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_out.dart';
 
-/// Holds the signed-in patient for the whole app.
+/// Why the last session ended, so the login page can explain it.
+enum EndReason { expired, closed }
+
+/// Holds the signed-in patient for the whole app. Pages read it; only this class changes it.
 class SessionController extends ChangeNotifier {
-  SessionController({required this._signIn, required this._signOut});
+  SessionController({
+    required this._signIn,
+    required this._signOut,
+    required RestoreSession restore,
+    this._now = DateTime.now,
+  }) {
+    _session = restore();
+    _armExpiry();
+  }
 
   final SignIn _signIn;
   final SignOut _signOut;
+  final DateTime Function() _now;
 
-  Patient? _patient;
+  Session? _session;
+  EndReason? _endReason;
+  Timer? _timer;
 
-  Patient? get patient => _patient;
-  bool get isSignedIn => _patient != null;
+  Patient? get patient => _session?.patient;
+  String? get token => _session?.token;
+  EndReason? get endReason => _endReason;
 
-  Future<bool> signIn(String email, String password) async {
-    final patient = await _signIn(email: email, password: password);
-    if (patient == null) return false;
-    _patient = patient;
-    notifyListeners();
+  /// True while the session exists and has not expired; ends it otherwise.
+  bool get isSignedIn {
+    final session = _session;
+    if (session == null) return false;
+    if (session.isExpired(_now())) {
+      signOut(EndReason.expired);
+      return false;
+    }
     return true;
   }
 
-  Future<void> signOut() async {
-    await _signOut();
-    _patient = null;
+  /// Throws `AppError` when the credentials are wrong or the account is not a patient's.
+  Future<void> signIn(String email, String password) async {
+    _session = await _signIn(email: email, password: password);
+    _endReason = null;
+    _armExpiry();
     notifyListeners();
+  }
+
+  void signOut([EndReason reason = EndReason.closed]) {
+    _timer?.cancel();
+    _signOut();
+    _session = null;
+    _endReason = reason;
+    notifyListeners();
+  }
+
+  /// The API rejected our token: the session is no longer valid.
+  void expire() {
+    if (_session != null) signOut(EndReason.expired);
+  }
+
+  void _armExpiry() {
+    _timer?.cancel();
+    final session = _session;
+    if (session == null) return;
+    final delay = session.expiresAt.difference(_now());
+    _timer = Timer(delay.isNegative ? Duration.zero : delay, expire);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }

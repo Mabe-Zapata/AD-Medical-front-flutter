@@ -15,7 +15,8 @@ class AppRouter {
   final AppDependencies _dependencies;
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    final name = Uri.parse(settings.name ?? Routes.home).path;
+    final uri = Uri.parse(settings.name ?? Routes.home);
+    final name = uri.path;
     final argument = settings.arguments is String ? settings.arguments as String : null;
 
     if (_protected.contains(name) && !_dependencies.session.isSignedIn) {
@@ -26,7 +27,7 @@ class AppRouter {
     }
 
     final Widget page = switch (name) {
-      Routes.login => LoginPage(next: argument),
+      Routes.login => LoginPage(next: argument, expired: uri.queryParameters['motivo'] == 'expirada'),
       Routes.book => BookingPage(serviceId: argument),
       Routes.portal => PortalPage(justBookedId: argument),
       _ => const LandingPage(),

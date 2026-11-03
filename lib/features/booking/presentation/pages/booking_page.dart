@@ -14,6 +14,13 @@ import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_footer.dart';
 
+const _demoFootnote =
+    'Las horas tachadas no están disponibles. Demo: las 10:30 parecen libres, pero otro paciente '
+    'siempre las toma al confirmar, para mostrar que la disponibilidad se valida de nuevo.';
+const _liveFootnote =
+    'Solo se muestran los horarios libres, en hora de la sede (UTC-5). '
+    'La disponibilidad se valida de nuevo al confirmar.';
+
 /// Container: loads the services, then hands over to [_BookingView].
 class BookingPage extends StatefulWidget {
   const BookingPage({super.key, this.serviceId});
@@ -87,7 +94,8 @@ class _BookingViewState extends State<_BookingView> {
   @override
   Widget build(BuildContext context) {
     final wide = isWide(context);
-    final session = AppScope.of(context).session;
+    final deps = AppScope.of(context);
+    final session = deps.session;
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
@@ -109,6 +117,8 @@ class _BookingViewState extends State<_BookingView> {
                 slots: c.slots,
                 selectedSlot: c.selectedSlot,
                 loading: c.loadingSlots,
+                error: c.slotsError,
+                footnote: deps.isDemo ? _demoFootnote : _liveFootnote,
                 onDay: c.selectDay,
                 onSlot: c.selectSlot,
               ),
@@ -130,6 +140,7 @@ class _BookingViewState extends State<_BookingView> {
           service: c.service,
           slot: c.selectedSlot,
           conflictedSlot: c.conflictedSlot,
+          error: c.reserveError,
           submitting: c.submitting,
           canConfirm: c.canConfirm,
           holdMinutes: Appointment.reservationHold.inMinutes,
@@ -150,7 +161,7 @@ class _BookingViewState extends State<_BookingView> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Sesión iniciada como ${session.patient?.fullName}. Las horas se muestran en hora de la sede (UTC-5).',
+                        'Sesión iniciada como ${session.patient?.displayName}. Las horas se muestran en hora de la sede (UTC-5).',
                         style: const TextStyle(color: Tokens.muted),
                       ),
                       const SizedBox(height: 28),

@@ -4,16 +4,24 @@ import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/section_label.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_footer.dart';
 
+/// Only same-site routes are accepted as a destination.
+String safeNext(String? target) =>
+    target != null && target.startsWith('/') && !target.startsWith('//') ? target : Routes.portal;
+
 /// Container: owns the form state and talks to the session.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.next});
+  const LoginPage({super.key, this.next, this.expired = false});
 
   /// Route to open after a successful sign-in.
   final String? next;
+
+  /// The previous session ended because it expired.
+  final bool expired;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -24,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
   late final _email = TextEditingController(text: _demo?.email);
   late final _password = TextEditingController(text: _demo?.password);
   bool _busy = false;
-  String? _error;
+  ErrorView? _error;
 
   @override
   void dispose() {
@@ -40,15 +48,16 @@ class _LoginPageState extends State<LoginPage> {
       _busy = true;
       _error = null;
     });
-    final ok = await session.signIn(_email.text, _password.text);
-    if (!mounted) return;
-    if (ok) {
-      navigator.pushReplacementNamed(widget.next ?? Routes.portal);
-    } else {
-      setState(() {
-        _busy = false;
-        _error = 'Correo o contraseña incorrectos.';
-      });
+    try {
+      await session.signIn(_email.text, _password.text);
+      if (mounted) navigator.pushReplacementNamed(safeNext(widget.next));
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = describeError(error);
+        });
+      }
     }
   }
 
@@ -67,6 +76,7 @@ class _LoginPageState extends State<LoginPage> {
                   password: _password,
                   busy: _busy,
                   error: _error,
+                  expired: widget.expired,
                   demoHint: _demo == null ? null : 'Cuenta demo: ${_demo.email} / ${_demo.password}.',
                   onSubmit: _submit,
                 ),
@@ -86,6 +96,7 @@ class _LoginForm extends StatelessWidget {
     required this.password,
     required this.busy,
     required this.error,
+    required this.expired,
     required this.demoHint,
     required this.onSubmit,
   });
@@ -93,7 +104,8 @@ class _LoginForm extends StatelessWidget {
   final TextEditingController email;
   final TextEditingController password;
   final bool busy;
-  final String? error;
+  final ErrorView? error;
+  final bool expired;
   final String? demoHint;
   final VoidCallback onSubmit;
 
@@ -110,6 +122,14 @@ class _LoginForm extends StatelessWidget {
           style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Tokens.slate900),
         ),
         const SizedBox(height: 24),
+        if (expired) ...[
+          const InfoBanner(
+            message: 'Tu sesión expiró. Inicia sesión de nuevo.',
+            color: Tokens.warning,
+            icon: Icons.schedule,
+          ),
+          const SizedBox(height: 16),
+        ],
         TextField(
           controller: email,
           keyboardType: TextInputType.emailAddress,
@@ -124,7 +144,13 @@ class _LoginForm extends StatelessWidget {
         ),
         if (error != null) ...[
           const SizedBox(height: 16),
-          InfoBanner(message: error!, color: Tokens.danger, icon: Icons.error_outline),
+          InfoBanner(
+            message: error!.supportCode == null
+                ? error!.message
+                : '${error!.message}\nCódigo de soporte: ${error!.supportCode}',
+            color: Tokens.danger,
+            icon: Icons.error_outline,
+          ),
         ],
         const SizedBox(height: 24),
         SizedBox(
@@ -142,11 +168,7 @@ class _LoginForm extends StatelessWidget {
         ),
         if (demoHint != null) ...[
           const SizedBox(height: 20),
-          InfoBanner(
-            message: '$demoHint El portal real usará un JWT emitido por la API.',
-            color: Tokens.info,
-            icon: Icons.info_outline,
-          ),
+          InfoBanner(message: '$demoHint Versión demo: no hay conexión con el servidor.', color: Tokens.info, icon: Icons.info_outline),
         ],
       ],
     ),

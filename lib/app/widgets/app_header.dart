@@ -21,8 +21,8 @@ class AppHeader extends StatelessWidget {
         onSection: onSection ?? (_) => navigator.pushNamedAndRemoveUntil(Routes.home, (route) => false),
         onSignIn: () => navigator.pushNamed(Routes.login),
         onOpenPortal: () => navigator.pushNamed(Routes.portal),
-        onSignOut: () async {
-          await session.signOut();
+        onSignOut: () {
+          session.signOut();
           navigator.pushNamedAndRemoveUntil(Routes.home, (route) => false);
         },
       ),

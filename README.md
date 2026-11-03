@@ -3,19 +3,38 @@
 Public portal for patients of the clinical laboratory platform: general lab information,
 appointment booking and access to validated results. The UI is in Spanish, the code in English.
 
-The app currently runs on an in-memory demo API (`lib/infrastructure/demo`), shaped like the
-backend schema (`citas`, `horarios_disponibles`, `ordenes_laboratorio`, `resultados_laboratorio`...).
+Sibling of the Angular staff system (`../frontend-angular`). Read [AGENTS.md](AGENTS.md) before changing anything.
+
+## Two modes, one codebase
+
+| Mode | How | Data |
+| --- | --- | --- |
+| Demo (default) | `flutter run -d chrome` | In-memory database shaped like the backend schema. Account `paciente@demo.test` / `demo1234`. |
+| API | `--dart-define=API_BASE_URL=/api/v1` | The real REST API: login, availability, reservations, cancel, lab results. |
+
+Only `lib/app/dependencies.dart` knows which repositories are wired; use cases, controllers and pages are shared.
 
 ## Run
 
 ```bash
 flutter pub get
-flutter run -d chrome        # or: flutter run -d web-server --web-port 8765
 flutter test
 flutter analyze
+
+# Demo
+flutter run -d chrome
+
+# API: build, then serve build/web and proxy /api to the backend (no CORS needed)
+flutter build web --dart-define=API_BASE_URL=/api/v1
+node tools/serve_web.mjs 4300          # BACKEND_URL defaults to http://localhost:5000
 ```
 
-Demo account: `paciente@demo.test` / `demo1234`.
+Build-time settings (`--dart-define`):
+
+| Name | Meaning |
+| --- | --- |
+| `API_BASE_URL` | Absolute or origin-relative API root. Empty means demo mode. |
+| `SERVICES_JSON` | Bookable services of the environment: `[{"id":"<uuid>","name":"...","durationMin":20,"basePrice":8}]`. Without it the demo services are used and a real reservation is refused (their ids are not UUIDs of that backend). |
 
 ## Architecture
 
@@ -25,15 +44,29 @@ Dependencies point inwards: `presentation -> domain <- data`.
 ```
 lib/
   app/             composition root (dependencies.dart), router, scope, app shell
-  core/            design tokens, theme, time (branch UTC-5) and Spanish formatting
+  core/            design tokens, theme, http client, errors, time (branch UTC-5), Spanish formatting
   shared/          atoms / molecules / organisms reused across features
-  infrastructure/  demo in-memory database (replace with the REST client)
+  infrastructure/  demo in-memory database
   features/
     auth/  catalog/  booking/  lab_results/  portal/
       domain/        entities, repository ports, use cases (pure Dart)
-      data/          repository implementations
+      data/          demo_* and http_* repository implementations
       presentation/  pages (containers), widgets (presentational), controllers
 ```
 
-To connect the real API, add repositories that implement the ports in each `domain/repositories`
-and swap them in `AppDependencies` (`lib/app/dependencies.dart`).
+## What the backend does not offer yet
+
+The portal degrades gracefully instead of inventing data:
+
+| Gap | Behavior in API mode |
+| --- | --- |
+| No "my appointments" / "my orders" listing | Appointments reserved in this session are shown; orders are opened by id (lookup form). |
+| No catalog endpoints | Static catalog; services come from `SERVICES_JSON`. |
+| No payment confirmation | Not shown. |
+| `/me` returns only id, roles, permissions | The patient is shown by email. |
+| Order response lacks dates, doctor and test names | Optional fields; tests are labeled "Prueba N". |
+
+## Quality bar
+
+`flutter analyze` clean, `flutter test` green, `flutter build web` succeeds. API-mode flows are verified
+against a contract mock (`MockClient`), not a live backend: say so when reporting.
