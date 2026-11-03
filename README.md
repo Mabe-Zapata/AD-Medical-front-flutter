@@ -29,6 +29,9 @@ flutter build web --dart-define=API_BASE_URL=/api/v1
 node tools/serve_web.mjs 4300          # BACKEND_URL defaults to http://localhost:5000
 ```
 
+On Windows with Git Bash, prefix the build with `MSYS_NO_PATHCONV=1`: otherwise `/api/v1` is rewritten into a
+`C:/Program Files/Git/...` path and every request fails with "No se pudo conectar con el servidor".
+
 Build-time settings (`--dart-define`):
 
 | Name | Meaning |

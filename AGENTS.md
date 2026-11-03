@@ -34,6 +34,7 @@ lib/features/<f>/{domain,data,presentation}
 
 - Demo (por defecto): datos en memoria, sin red.
 - API: `--dart-define=API_BASE_URL=/api/v1` (y `SERVICES_JSON` con los servicios reservables reales). Se sirve con `node tools/serve_web.mjs` (proxy `/api` → backend, sin CORS).
+- En Windows con Git Bash compila con `MSYS_NO_PATHCONV=1`; si no, `/api/v1` se convierte en una ruta de Windows y todo falla con "No se pudo conectar".
 - Una funcionalidad nueva se implementa **en ambos modos** (repositorio `demo_*` y `http_*`) detrás del mismo puerto.
 
 ## Contrato con el backend
