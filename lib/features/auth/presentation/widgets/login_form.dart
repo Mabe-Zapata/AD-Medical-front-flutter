@@ -13,6 +13,9 @@ class LoginForm extends StatelessWidget {
     required this.password,
     required this.busy,
     required this.error,
+    required this.emailError,
+    required this.passwordError,
+    required this.onEdited,
     required this.expired,
     required this.demoHint,
     required this.onSubmit,
@@ -23,6 +26,13 @@ class LoginForm extends StatelessWidget {
   final TextEditingController password;
   final bool busy;
   final ErrorView? error;
+
+  /// Field-level messages from the container's validation; shown under the field.
+  final String? emailError;
+  final String? passwordError;
+
+  /// Called when a field changes, so the container can clear stale messages.
+  final VoidCallback onEdited;
   final bool expired;
   final String? demoHint;
   final VoidCallback onSubmit;
@@ -43,12 +53,19 @@ class LoginForm extends StatelessWidget {
       TextField(
         controller: email,
         keyboardType: TextInputType.emailAddress,
-        decoration: const InputDecoration(labelText: 'Correo electrónico', prefixIcon: Icon(Icons.mail_outline, size: 20)),
+        onChanged: (_) => onEdited(),
+        decoration: InputDecoration(
+          labelText: 'Correo electrónico',
+          prefixIcon: const Icon(Icons.mail_outline, size: 20),
+          errorText: emailError,
+        ),
       ),
       const SizedBox(height: 16),
       PasswordField(
         controller: password,
         label: 'Contraseña',
+        errorText: passwordError,
+        onChanged: (_) => onEdited(),
         onSubmitted: (_) => onSubmit(),
       ),
       if (error != null) ...[const SizedBox(height: 16), ErrorBanner(error: error!)],

@@ -41,8 +41,9 @@ void main() {
     await type(tester, 'Correo electrónico', 'ana@demo.test');
     await type(tester, 'Teléfono móvil', '99 123 4567');
     await type(tester, 'Contraseña', password);
-    await type(tester, 'Confirmar contraseña', password);
-    await tapText(tester, find.byType(CheckboxListTile));
+    await type(tester, 'Confirmar', password);
+    await tapText(tester, find.byType(CheckboxListTile).at(0));
+    await tapText(tester, find.byType(CheckboxListTile).at(1));
   }
 
   /// Picks tomorrow and its first free time, inside the booking modal.
@@ -72,18 +73,42 @@ void main() {
       expect(find.text('Hola, Ana'), findsOneWidget);
     });
 
+    testWidgets('the button stays disabled until the data use is confirmed', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pumpAndSettle();
+
+      FilledButton button() => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Crear cuenta'));
+      expect(button().onPressed, isNull);
+
+      await tapText(tester, find.byType(CheckboxListTile).at(1));
+      expect(button().onPressed, isNotNull);
+
+      await tapText(tester, find.byType(CheckboxListTile).at(1));
+      expect(button().onPressed, isNull);
+    });
+
+    testWidgets('tells the person which email will receive the notifications', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('notificaciones de tus citas y resultados'), findsOneWidget);
+    });
+
     testWidgets('explains what is missing and does not submit', (tester) async {
       await pumpApp(tester, size: const Size(1400, 900));
       await tester.tap(find.text('Crear cuenta'));
       await tester.pumpAndSettle();
 
       await type(tester, 'Contraseña', 'corta');
+      await tapText(tester, find.byType(CheckboxListTile).at(1));
       await tapText(tester, find.widgetWithText(FilledButton, 'Crear cuenta'));
 
       expect(find.text('Escribe tus nombres.'), findsOneWidget);
       expect(find.text('Escribe un correo válido.'), findsOneWidget);
       expect(find.text('Mínimo 12 caracteres.'), findsOneWidget);
-      expect(find.text('Debes aceptarlos para crear la cuenta.'), findsOneWidget);
+      expect(find.text('Debes aceptar los términos para crear la cuenta.'), findsOneWidget);
       expect(find.textContaining('Hola,'), findsNothing);
     });
 
@@ -93,7 +118,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await type(tester, 'Contraseña', 'una-clave-larga-1');
-      await type(tester, 'Confirmar contraseña', 'otra-clave-larga-2');
+      await type(tester, 'Confirmar', 'otra-clave-larga-2');
       await tester.pumpAndSettle();
 
       expect(find.text('Las contraseñas no coinciden.'), findsOneWidget);
@@ -122,6 +147,48 @@ void main() {
 
       expect(find.widgetWithText(TextField, 'Contraseña'), findsNothing);
       expect(find.text('Mantente sano'), findsOneWidget);
+    });
+  });
+
+  group('sign-in modal', () {
+    testWidgets('asks for the missing fields in Spanish instead of calling the server', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await type(tester, 'Correo electrónico', '');
+      await type(tester, 'Contraseña', '');
+
+      await tapText(tester, find.widgetWithText(FilledButton, 'Iniciar sesión'));
+
+      expect(find.text('Escribe tu correo electrónico.'), findsOneWidget);
+      expect(find.text('Escribe tu contraseña.'), findsOneWidget);
+      expect(find.textContaining('required'), findsNothing);
+      expect(find.textContaining('Los datos enviados'), findsNothing);
+    });
+
+    testWidgets('flags a malformed email and clears the message while typing', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await type(tester, 'Correo electrónico', 'no-es-un-correo');
+
+      await tapText(tester, find.widgetWithText(FilledButton, 'Iniciar sesión'));
+      expect(find.text('Escribe un correo válido.'), findsOneWidget);
+
+      await type(tester, 'Correo electrónico', 'ana@demo.test');
+      await tester.pumpAndSettle();
+      expect(find.text('Escribe un correo válido.'), findsNothing);
+    });
+
+    testWidgets('wrong credentials are explained without technical wording', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await type(tester, 'Contraseña', 'otra-clave');
+
+      await tapText(tester, find.widgetWithText(FilledButton, 'Iniciar sesión'));
+
+      expect(find.text('Correo o contraseña incorrectos.'), findsOneWidget);
     });
   });
 

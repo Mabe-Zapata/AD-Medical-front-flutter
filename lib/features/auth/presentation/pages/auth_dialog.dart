@@ -41,6 +41,8 @@ class _AuthDialogState extends State<AuthDialog> {
   bool _prefilled = false;
   bool _busy = false;
   ErrorView? _error;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void didChangeDependencies() {
@@ -63,6 +65,8 @@ class _AuthDialogState extends State<AuthDialog> {
   void _switchTo(AuthMode mode) => setState(() {
     _mode = mode;
     _error = null;
+    _emailError = null;
+    _passwordError = null;
   });
 
   Future<void> _run(Future<void> Function() action, {Map<ErrorKind, String> overrides = const {}}) async {
@@ -85,6 +89,19 @@ class _AuthDialogState extends State<AuthDialog> {
   }
 
   void _signIn() {
+    final email = _email.text.trim();
+    final emailError = email.isEmpty
+        ? 'Escribe tu correo electrónico.'
+        : (RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email) ? null : 'Escribe un correo válido.');
+    final passwordError = _password.text.isEmpty ? 'Escribe tu contraseña.' : null;
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+        _error = null;
+      });
+      return;
+    }
     final session = AppScope.of(context).session;
     _run(() => session.signIn(_email.text, _password.text));
   }
@@ -96,7 +113,6 @@ class _AuthDialogState extends State<AuthDialog> {
       overrides: const {
         ErrorKind.conflict: 'Ya existe una cuenta con ese correo. Inicia sesión.',
         ErrorKind.notFound: 'El registro todavía no está disponible en el servidor. Inténtalo más tarde.',
-        ErrorKind.validation: 'El servidor rechazó los datos. Revisa el correo y la contraseña.',
       },
     );
   }
@@ -130,6 +146,12 @@ class _AuthDialogState extends State<AuthDialog> {
               password: _password,
               busy: _busy,
               error: _error,
+              emailError: _emailError,
+              passwordError: _passwordError,
+              onEdited: () => setState(() {
+                _emailError = null;
+                _passwordError = null;
+              }),
               expired: widget.expired,
               demoHint: _demo == null ? null : 'Cuenta demo: ${_demo!.email} / ${_demo!.password}.',
               onSubmit: _signIn,

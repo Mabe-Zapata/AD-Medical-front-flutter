@@ -69,6 +69,10 @@ Si el backend cierra una brecha, actualiza el repositorio `http_*`, quita la lim
 `invalidCredentials, unauthenticated, forbidden, notFound, conflict, validation, rateLimited, network, unavailable (502/503/504), notPatient, unknown`.
 Los textos en español salen de `describeError` (`shared/presentation/error_message.dart`); no escribas mensajes sueltos en las páginas.
 
+## Mensajes de error
+
+- **Mensajes de error**: nunca muestres `AppError.message` (es interno y está en inglés). Todo texto visible sale de `describeError` en español; del mensaje solo se traducen los campos rechazados por el servidor. Valida los formularios en el cliente, con el error debajo de cada campo, antes de llamar a la API.
+
 ## Seguridad
 
 - Sesión en `sessionStorage` (clave `medilo.patient.session`), nunca `localStorage`.

@@ -129,11 +129,17 @@ void main() {
       'Correo electrónico': 'Ana@Demo.test',
       'Teléfono móvil': '099 123 4567',
       'Contraseña': 'una-clave-larga-1',
-      'Confirmar contraseña': 'una-clave-larga-1',
+      'Confirmar': 'una-clave-larga-1',
     }.entries) {
       await tester.enterText(find.widgetWithText(TextField, entry.key), entry.value);
     }
-    await tester.tap(find.byType(CheckboxListTile));
+    // The form is taller than the modal and scrolls inside it.
+    for (final index in [0, 1]) {
+      await tester.ensureVisible(find.byType(CheckboxListTile).at(index));
+      await tester.tap(find.byType(CheckboxListTile).at(index));
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Crear cuenta'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
     await tester.pumpAndSettle();
