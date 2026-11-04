@@ -20,10 +20,7 @@ class AppRouter {
     final argument = settings.arguments is String ? settings.arguments as String : null;
 
     if (_protected.contains(name) && !_dependencies.session.isSignedIn) {
-      return MaterialPageRoute(
-        settings: const RouteSettings(name: Routes.login),
-        builder: (_) => LoginPage(next: name),
-      );
+      return _route(const RouteSettings(name: Routes.login), LoginPage(next: name));
     }
 
     final Widget page = switch (name) {
@@ -32,6 +29,11 @@ class AppRouter {
       Routes.portal => PortalPage(justBookedId: argument),
       _ => const LandingPage(),
     };
-    return MaterialPageRoute(settings: settings, builder: (_) => page);
+    return _route(settings, page);
   }
+
+  /// Flutter web only scrolls with the keyboard (arrows, Page Up/Down, Space) when something inside the
+  /// route has focus; without it every key press is dropped. The autofocus node makes it work on arrival.
+  static Route<dynamic> _route(RouteSettings settings, Widget page) =>
+      MaterialPageRoute(settings: settings, builder: (_) => Focus(autofocus: true, child: page));
 }

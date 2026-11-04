@@ -147,6 +147,7 @@ class _BookingViewState extends State<_BookingView> {
           onConfirm: _confirm,
         );
         return SingleChildScrollView(
+            primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
           child: Column(
             children: [
               Constrained(

@@ -90,6 +90,7 @@ class _PortalPageState extends State<PortalPage> {
           final error = _controller.error;
           final notice = _controller.notice;
           return SingleChildScrollView(
+            primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
             child: Column(
               children: [
                 Constrained(

@@ -64,6 +64,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) => PageShell(
     child: SingleChildScrollView(
+            primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
       child: Column(
         children: [
           Padding(

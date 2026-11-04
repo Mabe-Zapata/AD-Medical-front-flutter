@@ -12,6 +12,8 @@ Sibling of the Angular staff system (`../frontend-angular`). Read [AGENTS.md](AG
 | Demo (default) | `flutter run -d chrome` | In-memory database shaped like the backend schema. Account `paciente@demo.test` / `demo1234`. |
 | API | `--dart-define=API_BASE_URL=/api/v1` | The real REST API: login, availability, reservations, cancel, lab results. |
 
+Accounts of a backend with migration `0007` (pending merge, `APP_ENV` other than production): `paciente1@test.com` / `Password1`.
+
 Only `lib/app/dependencies.dart` knows which repositories are wired; use cases, controllers and pages are shared.
 
 ## Run

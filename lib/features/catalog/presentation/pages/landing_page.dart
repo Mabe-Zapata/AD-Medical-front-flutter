@@ -32,6 +32,7 @@ class _LandingPageState extends State<LandingPage> {
     final navigator = Navigator.of(context);
     return Scaffold(
       body: SingleChildScrollView(
+        primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
         child: Column(
           children: [
             HeroSection(
