@@ -1,0 +1,191 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:medicalbooking_portal/core/design/tokens.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
+import 'package:medicalbooking_portal/features/auth/domain/policies/registration_policy.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/widgets/registration_messages.dart';
+import 'package:medicalbooking_portal/shared/presentation/atoms/strength_bar.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/password_field.dart';
+
+/// Country code of the branch; the backend stores phones in international format.
+const _countryCode = '+593';
+
+/// Fields of the sign-up modal. It keeps its own field state and validation messages; the container
+/// only receives a complete [NewPatientAccount] through [onSubmit] and reports [busy] and [error].
+class RegisterForm extends StatefulWidget {
+  const RegisterForm({super.key, required this.busy, required this.error, required this.onSubmit, required this.onLogin});
+
+  final bool busy;
+  final ErrorView? error;
+  final void Function(NewPatientAccount account) onSubmit;
+  final VoidCallback onLogin;
+
+  @override
+  State<RegisterForm> createState() => _RegisterFormState();
+}
+
+class _RegisterFormState extends State<RegisterForm> {
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _terms = false;
+  bool _submitted = false;
+
+  @override
+  void dispose() {
+    for (final controller in [_firstName, _lastName, _email, _phone, _password, _confirm]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  NewPatientAccount _account() {
+    final national = _phone.text.replaceAll(RegExp(r'\D'), '').replaceFirst(RegExp('^0'), '');
+    return NewPatientAccount(
+      firstName: _firstName.text,
+      lastName: _lastName.text,
+      email: _email.text,
+      phone: '$_countryCode$national',
+      password: _password.text,
+    ).normalized();
+  }
+
+  Set<RegistrationProblem> get _problems => registrationProblems(_account()).toSet();
+
+  String? _error(RegistrationProblem problem) =>
+      _submitted && _problems.contains(problem) ? registrationMessage(problem) : null;
+
+  bool get _mismatch => _confirm.text.isNotEmpty && _confirm.text != _password.text;
+
+  void _submit() {
+    setState(() => _submitted = true);
+    if (_problems.isEmpty && !_mismatch && _confirm.text.isNotEmpty && _terms) widget.onSubmit(_account());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 420;
+    Widget pair(Widget a, Widget b) => wide
+        ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: a), const SizedBox(width: 12), Expanded(child: b)])
+        : Column(children: [a, const SizedBox(height: 14), b]);
+    final match = _confirm.text.isNotEmpty && !_mismatch;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        pair(
+          TextField(
+            controller: _firstName,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: 'Nombres', errorText: _error(RegistrationProblem.firstName)),
+            onChanged: (_) => setState(() {}),
+          ),
+          TextField(
+            controller: _lastName,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: 'Apellidos', errorText: _error(RegistrationProblem.lastName)),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        const SizedBox(height: 14),
+        pair(
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: 'Correo electrónico',
+              prefixIcon: const Icon(Icons.mail_outline, size: 20),
+              errorText: _error(RegistrationProblem.email),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]'))],
+            decoration: InputDecoration(
+              labelText: 'Teléfono móvil',
+              prefixText: '$_countryCode ',
+              errorText: _error(RegistrationProblem.phone),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        const SizedBox(height: 14),
+        pair(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PasswordField(
+                controller: _password,
+                label: 'Contraseña',
+                errorText: _error(RegistrationProblem.passwordLength),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              StrengthBar(level: passwordStrength(_password.text)),
+            ],
+          ),
+          PasswordField(
+            controller: _confirm,
+            label: 'Confirmar contraseña',
+            errorText: _mismatch ? 'Las contraseñas no coinciden.' : (_submitted && _confirm.text.isEmpty ? 'Repite la contraseña.' : null),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _submit(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Mínimo $minPasswordLength caracteres. Mezcla mayúsculas, números y símbolos.',
+                  style: const TextStyle(fontSize: 12, color: Tokens.muted),
+                ),
+              ),
+              if (match) const Icon(Icons.check_circle, size: 16, color: Tokens.success),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        CheckboxListTile(
+          value: _terms,
+          onChanged: (value) => setState(() => _terms = value ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          activeColor: Tokens.orange,
+          title: const Text('Acepto los términos de servicio y la política de privacidad de Medilo.', style: TextStyle(fontSize: 13)),
+          subtitle: _submitted && !_terms
+              ? const Text('Debes aceptarlos para crear la cuenta.', style: TextStyle(color: Tokens.danger, fontSize: 12))
+              : null,
+        ),
+        if (widget.error != null) ...[const SizedBox(height: 8), ErrorBanner(error: widget.error!)],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: widget.busy ? null : _submit,
+            child: widget.busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Crear cuenta'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('¿Ya tienes cuenta? ', style: TextStyle(color: Tokens.muted)),
+            TextButton(onPressed: widget.busy ? null : widget.onLogin, child: const Text('Inicia sesión')),
+          ],
+        ),
+      ],
+    );
+  }
+}

@@ -56,7 +56,8 @@ class _MedicalBookingAppState extends State<MedicalBookingApp> {
     final session = widget.dependencies.session;
     final signedIn = session.patient != null;
     if (_wasSignedIn && !signedIn && session.endReason == EndReason.expired) {
-      _navigatorKey.currentState?.pushNamedAndRemoveUntil('${Routes.login}?motivo=expirada', (route) => false);
+      // Keep the first page (the landing) behind the sign-in modal.
+      _navigatorKey.currentState?.pushNamedAndRemoveUntil('${Routes.login}?motivo=expirada', (route) => route.isFirst);
     }
     _wasSignedIn = signedIn;
   }

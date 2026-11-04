@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/session.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/register_patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_out.dart';
@@ -15,6 +17,7 @@ class SessionController extends ChangeNotifier {
   SessionController({
     required this._signIn,
     required this._signOut,
+    required this._register,
     required RestoreSession restore,
     this._now = DateTime.now,
   }) {
@@ -24,6 +27,7 @@ class SessionController extends ChangeNotifier {
 
   final SignIn _signIn;
   final SignOut _signOut;
+  final RegisterPatient _register;
   final DateTime Function() _now;
 
   Session? _session;
@@ -51,6 +55,13 @@ class SessionController extends ChangeNotifier {
     _endReason = null;
     _armExpiry();
     notifyListeners();
+  }
+
+  /// Creates the patient account and signs in with it. The role is always patient: this app is the
+  /// patients' portal. Throws `AppError` (validation, conflict, network...).
+  Future<void> register(NewPatientAccount account) async {
+    final created = await _register(account);
+    await signIn(created.email, created.password);
   }
 
   void signOut([EndReason reason = EndReason.closed]) {

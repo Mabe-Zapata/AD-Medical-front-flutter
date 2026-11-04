@@ -70,6 +70,7 @@ The portal degrades gracefully instead of inventing data:
 | No payment confirmation | Not shown. |
 | `/me` returns only id, roles, permissions | The patient is shown by email. |
 | Order response lacks dates, doctor and test names | Optional fields; tests are labeled "Prueba N". |
+| No public sign-up (`POST /users` needs an administrator) | The sign-up modal sends the proposed `POST /auth/register`; a 404 shows "not available yet". |
 
 ## Quality bar
 

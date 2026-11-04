@@ -54,8 +54,15 @@ lib/features/<f>/{domain,data,presentation}
 | Confirmación de pago | No se muestra |
 | `/me` solo trae id, roles y permisos | Se muestra el correo |
 | Orden sin fechas/médico/nombre de pruebas | Campos opcionales; pruebas como "Prueba N" |
+| Registro público de pacientes (`POST /users` exige administrador) | El modal de registro envía `POST /auth/register` (contrato propuesto, ver abajo); si el servidor responde 404 dice que aún no está disponible |
 
 Si el backend cierra una brecha, actualiza el repositorio `http_*`, quita la limitación de esta tabla y del README.
+
+## Modales y registro
+
+- Iniciar sesión, crear cuenta y reservar cita son **modales** sobre la página de origen (`shared/presentation/layout/modal_route.dart` + `organisms/two_panel_modal.dart`): panel de marca a la izquierda y la tarea a la derecha; en móvil (< 760 px) es una hoja a pantalla completa. Siguen siendo rutas con nombre (`/login`, `/registro`, `/book`), así que el botón atrás funciona. Una pantalla de tarea nueva se hace como modal igual.
+- Registro: el rol **no se envía**; esta app solo crea pacientes y el servidor debe fijarlo. Campos: nombres, apellidos, correo, teléfono (+593), contraseña de al menos 12 caracteres (la regla del backend, `MIN_PASSWORD_LENGTH`) y aceptar términos. Contrato propuesto, pendiente de que el backend lo implemente: `POST /api/v1/auth/register` con `{email, password, first_name, last_name, phone}`, público y con límite de intentos. Tras registrar, la app inicia sesión con las mismas credenciales.
+- Los textos de campos, errores y botones del formulario están en `features/auth/presentation/widgets/`; las reglas (qué es válido) en `features/auth/domain/policies/registration_policy.dart`.
 
 ## Errores (paridad con Angular)
 

@@ -1,4 +1,5 @@
 import 'package:medicalbooking_portal/core/http/api_client.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/repositories/auth_repository.dart';
 
@@ -15,6 +16,23 @@ class HttpAuthRepository implements AuthRepository {
     return IssuedToken(
       token: json['access_token'] as String,
       expiresIn: Duration(seconds: json['expires_in'] as int),
+    );
+  }
+
+  /// Proposed contract: the backend has no public sign-up yet (`POST /users` needs an administrator).
+  /// The role is not sent: the server must fix it to patient. A 404/405 means it is not deployed.
+  @override
+  Future<void> register(NewPatientAccount account) async {
+    await _api.post(
+      '/auth/register',
+      body: {
+        'email': account.email,
+        'password': account.password,
+        'first_name': account.firstName,
+        'last_name': account.lastName,
+        'phone': account.phone,
+      },
+      authenticated: false,
     );
   }
 

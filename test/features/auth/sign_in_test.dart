@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/repositories/auth_repository.dart';
@@ -22,6 +23,9 @@ class _FakeAuth implements AuthRepository {
     if (failure != null) throw failure!;
     return const IssuedToken(token: 'jwt', expiresIn: Duration(minutes: 15));
   }
+
+  @override
+  Future<void> register(NewPatientAccount account) async {}
 
   @override
   Future<Patient> fetchProfile({required String token, required String email}) async {

@@ -1,0 +1,144 @@
+import 'package:flutter/material.dart';
+import 'package:medicalbooking_portal/app/app_scope.dart';
+import 'package:medicalbooking_portal/app/routes.dart';
+import 'package:medicalbooking_portal/core/design/tokens.dart';
+import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/widgets/login_form.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/widgets/register_form.dart';
+import 'package:medicalbooking_portal/shared/presentation/atoms/section_label.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
+import 'package:medicalbooking_portal/shared/presentation/organisms/two_panel_modal.dart';
+
+/// Only same-site routes are accepted as a destination.
+String safeNext(String? target) =>
+    target != null && target.startsWith('/') && !target.startsWith('//') ? target : Routes.portal;
+
+enum AuthMode { login, register }
+
+/// Container: the sign-in / sign-up modal. It owns the state and talks to the session; the role of
+/// a new account is always patient because this app is the patients' portal.
+class AuthDialog extends StatefulWidget {
+  const AuthDialog({super.key, this.mode = AuthMode.login, this.next, this.expired = false});
+
+  final AuthMode mode;
+
+  /// Route to open after signing in.
+  final String? next;
+
+  /// The previous session ended because it expired.
+  final bool expired;
+
+  @override
+  State<AuthDialog> createState() => _AuthDialogState();
+}
+
+class _AuthDialogState extends State<AuthDialog> {
+  late AuthMode _mode = widget.mode;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  ({String email, String password})? _demo;
+  bool _prefilled = false;
+  bool _busy = false;
+  ErrorView? _error;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The demo account is prefilled once; the context cannot be read from initState.
+    if (_prefilled) return;
+    _prefilled = true;
+    _demo = AppScope.of(context).demoCredentials;
+    _email.text = _demo?.email ?? '';
+    _password.text = _demo?.password ?? '';
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _switchTo(AuthMode mode) => setState(() {
+    _mode = mode;
+    _error = null;
+  });
+
+  Future<void> _run(Future<void> Function() action, {Map<ErrorKind, String> overrides = const {}}) async {
+    final navigator = Navigator.of(context);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+      if (mounted) navigator.pushReplacementNamed(safeNext(widget.next));
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = describeError(error, overrides: overrides);
+        });
+      }
+    }
+  }
+
+  void _signIn() {
+    final session = AppScope.of(context).session;
+    _run(() => session.signIn(_email.text, _password.text));
+  }
+
+  void _register(NewPatientAccount account) {
+    final session = AppScope.of(context).session;
+    _run(
+      () => session.register(account),
+      overrides: const {
+        ErrorKind.conflict: 'Ya existe una cuenta con ese correo. Inicia sesión.',
+        ErrorKind.notFound: 'El registro todavía no está disponible en el servidor. Inténtalo más tarde.',
+        ErrorKind.validation: 'El servidor rechazó los datos. Revisa el correo y la contraseña.',
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final login = _mode == AuthMode.login;
+    return TwoPanelModal(
+      tag: 'Portal del paciente',
+      headline: login ? 'Tus citas y resultados, en un solo lugar.' : 'Crea tu cuenta de paciente.',
+      bullets: const [
+        'Reserva tu cita de laboratorio en minutos.',
+        'Consulta tus resultados validados cuando estén listos.',
+        'Tus datos clínicos viajan protegidos y solo tú los ves.',
+      ],
+      footerLabel: login ? 'Acceso de pacientes' : 'Cuenta de paciente',
+      footerNote: login ? 'Sesión segura' : 'Registro gratuito',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionLabel(login ? 'Bienvenido' : 'Nueva cuenta'),
+          const SizedBox(height: 8),
+          Text(
+            login ? 'Iniciar sesión' : 'Crear cuenta',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Tokens.slate900),
+          ),
+          const SizedBox(height: 20),
+          if (login)
+            LoginForm(
+              email: _email,
+              password: _password,
+              busy: _busy,
+              error: _error,
+              expired: widget.expired,
+              demoHint: _demo == null ? null : 'Cuenta demo: ${_demo!.email} / ${_demo!.password}.',
+              onSubmit: _signIn,
+              onRegister: () => _switchTo(AuthMode.register),
+            )
+          else
+            RegisterForm(busy: _busy, error: _error, onSubmit: _register, onLogin: () => _switchTo(AuthMode.login)),
+        ],
+      ),
+    );
+  }
+}

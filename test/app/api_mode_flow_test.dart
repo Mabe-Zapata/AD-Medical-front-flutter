@@ -92,4 +92,59 @@ void main() {
     expect(find.textContaining('Tu sesión expiró'), findsOneWidget);
     expect(find.text('Iniciar sesión'), findsWidgets);
   });
+  testWidgets('API mode: the sign-up says so when the server has no registration yet, and sends no role', (tester) async {
+    final original = FlutterError.onError;
+    FlutterError.onError = (details) {
+      if (!details.exceptionAsString().contains('overflowed')) original?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = original);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(tester.view.reset);
+
+    final bodies = <Map<String, dynamic>>[];
+    final backend = MockClient((request) async {
+      if (request.url.path == '/api/v1/auth/register') {
+        bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return _json({'detail': 'Not Found', 'status': 404}, 404);
+      }
+      return _json({'detail': 'unexpected'}, 404);
+    });
+    await tester.pumpWidget(
+      MedicalBookingApp(
+        dependencies: AppDependencies.api(
+          apiBaseUrl: 'http://api.test/api/v1',
+          client: backend,
+          store: MemorySessionStore(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Crear cuenta'));
+    await tester.pumpAndSettle();
+    for (final entry in {
+      'Nombres': 'Ana',
+      'Apellidos': 'Pérez',
+      'Correo electrónico': 'Ana@Demo.test',
+      'Teléfono móvil': '099 123 4567',
+      'Contraseña': 'una-clave-larga-1',
+      'Confirmar contraseña': 'una-clave-larga-1',
+    }.entries) {
+      await tester.enterText(find.widgetWithText(TextField, entry.key), entry.value);
+    }
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('El registro todavía no está disponible'), findsOneWidget);
+    expect(bodies.single, {
+      'email': 'ana@demo.test',
+      'password': 'una-clave-larga-1',
+      'first_name': 'Ana',
+      'last_name': 'Pérez',
+      'phone': '+593991234567',
+    });
+  });
 }

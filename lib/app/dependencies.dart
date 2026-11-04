@@ -5,6 +5,7 @@ import 'package:medicalbooking_portal/features/auth/data/repositories/http_auth_
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart' as memory;
 import 'package:medicalbooking_portal/features/auth/data/session/session_store_factory.dart';
 import 'package:medicalbooking_portal/features/auth/domain/repositories/auth_repository.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/register_patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_out.dart';
@@ -114,6 +115,7 @@ class AppDependencies {
   }) => SessionController(
     signIn: SignIn(auth, store, now: now),
     signOut: SignOut(store),
+    register: RegisterPatient(auth),
     restore: RestoreSession(store, now: now),
     now: now,
   );
