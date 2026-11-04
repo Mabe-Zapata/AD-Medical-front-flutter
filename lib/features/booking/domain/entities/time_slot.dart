@@ -8,12 +8,16 @@ class TimeSlot {
     required this.startUtc,
     required this.endUtc,
     required this.status,
+    this.doctorId,
   });
 
   final String id;
   final DateTime startUtc;
   final DateTime endUtc;
   final SlotStatus status;
+
+  /// Only known when the slot comes from the real API.
+  final String? doctorId;
 
   bool get isAvailable => status == SlotStatus.available;
 }

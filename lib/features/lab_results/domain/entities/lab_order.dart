@@ -10,7 +10,7 @@ enum OrderPriority { normal, urgent }
 /// resultados_laboratorio.interpretacion: classification of the value, never a diagnosis.
 enum Interpretation { low, withinReference, high, notEvaluable }
 
-/// resultados_laboratorio. Only rows with [validatedAt] set are shown to the patient.
+/// resultados_laboratorio. Only validated rows are shown to the patient.
 class AnalyteResult {
   const AnalyteResult({
     required this.name,
@@ -23,6 +23,7 @@ class AnalyteResult {
     this.method,
     this.sampleType,
     this.validatedAt,
+    this.validated,
   });
 
   final String name;
@@ -36,7 +37,11 @@ class AnalyteResult {
   final String? sampleType;
   final DateTime? validatedAt;
 
-  bool get isValidated => validatedAt != null;
+  /// Explicit flag for sources that do not send a validation date. The real API only returns
+  /// results the patient may read, so its mapper sets this to true.
+  final bool? validated;
+
+  bool get isValidated => validated ?? validatedAt != null;
 }
 
 /// ordenes_laboratorio_detalle (+ tipos_prueba_laboratorio.nombre)
@@ -60,23 +65,23 @@ class OrderDetail {
   List<AnalyteResult> get validatedResults => results.where((r) => r.isValidated).toList();
 }
 
-/// ordenes_laboratorio (+ medicos/usuarios for the doctor's name)
+/// ordenes_laboratorio. The real API does not send the doctor, the date or the test names.
 class LabOrder {
   const LabOrder({
     required this.id,
     required this.patientId,
-    required this.doctorName,
-    required this.orderedAt,
     required this.priority,
     required this.status,
     required this.details,
+    this.doctorName,
+    this.orderedAt,
     this.notes,
   });
 
   final String id;
   final String patientId;
-  final String doctorName;
-  final DateTime orderedAt;
+  final String? doctorName;
+  final DateTime? orderedAt;
   final OrderPriority priority;
   final OrderStatus status;
   final String? notes;

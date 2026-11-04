@@ -7,6 +7,7 @@ import 'package:medicalbooking_portal/app/app_scope.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/core/design/theme.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/controllers/session_controller.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_header.dart';
 
 /// Lets every pointer (mouse drag, touch, trackpad, stylus) scroll and keeps
@@ -23,15 +24,49 @@ class AppScrollBehavior extends MaterialScrollBehavior {
   };
 }
 
-class MedicalBookingApp extends StatelessWidget {
+class MedicalBookingApp extends StatefulWidget {
   const MedicalBookingApp({super.key, required this.dependencies});
 
   final AppDependencies dependencies;
 
   @override
+  State<MedicalBookingApp> createState() => _MedicalBookingAppState();
+}
+
+class _MedicalBookingAppState extends State<MedicalBookingApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  late bool _wasSignedIn = widget.dependencies.session.patient != null;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.dependencies.session.addListener(_onSessionChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.dependencies.session.removeListener(_onSessionChanged);
+    // The app owns its dependencies: nothing may keep running after it is gone.
+    widget.dependencies.dispose();
+    super.dispose();
+  }
+
+  /// Any way a session ends on its own (token expiry, a 401 from the API) lands on the login page.
+  void _onSessionChanged() {
+    final session = widget.dependencies.session;
+    final signedIn = session.patient != null;
+    if (_wasSignedIn && !signedIn && session.endReason == EndReason.expired) {
+      // Keep the first page (the landing) behind the sign-in modal.
+      _navigatorKey.currentState?.pushNamedAndRemoveUntil('${Routes.login}?motivo=expirada', (route) => route.isFirst);
+    }
+    _wasSignedIn = signedIn;
+  }
+
+  @override
   Widget build(BuildContext context) => AppScope(
-    dependencies: dependencies,
+    dependencies: widget.dependencies,
     child: MaterialApp(
+      navigatorKey: _navigatorKey,
       title: '$brandName · Portal del paciente',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
@@ -40,7 +75,7 @@ class MedicalBookingApp extends StatelessWidget {
       supportedLocales: const [Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       initialRoute: Routes.home,
-      onGenerateRoute: AppRouter(dependencies).onGenerateRoute,
+      onGenerateRoute: AppRouter(widget.dependencies).onGenerateRoute,
     ),
   );
 }

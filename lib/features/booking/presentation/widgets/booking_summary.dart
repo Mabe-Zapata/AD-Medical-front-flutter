@@ -5,6 +5,7 @@ import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 
@@ -14,6 +15,7 @@ class BookingSummary extends StatelessWidget {
     required this.service,
     required this.slot,
     required this.conflictedSlot,
+    required this.error,
     required this.submitting,
     required this.canConfirm,
     required this.holdMinutes,
@@ -23,6 +25,7 @@ class BookingSummary extends StatelessWidget {
   final MedicalService service;
   final TimeSlot? slot;
   final TimeSlot? conflictedSlot;
+  final ErrorView? error;
   final bool submitting;
   final bool canConfirm;
   final int holdMinutes;
@@ -48,6 +51,16 @@ class BookingSummary extends StatelessWidget {
               message: 'Otro paciente acaba de reservar las ${timeLabel(branchTime(conflict.startUtc))}. Elige otra hora.',
               color: Tokens.danger,
               icon: Icons.event_busy_outlined,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (error != null) ...[
+            InfoBanner(
+              message: error!.supportCode == null
+                  ? error!.message
+                  : '${error!.message}\nCódigo de soporte: ${error!.supportCode}',
+              color: Tokens.danger,
+              icon: Icons.error_outline,
             ),
             const SizedBox(height: 16),
           ],

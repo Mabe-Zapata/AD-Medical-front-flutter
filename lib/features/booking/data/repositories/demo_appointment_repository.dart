@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
@@ -55,5 +56,18 @@ class DemoAppointmentRepository implements AppointmentRepository {
   Future<List<Appointment>> appointmentsOf(String patientId) async {
     await _db.simulateLatency();
     return _db.appointments.where((a) => a.patientId == patientId).toList();
+  }
+
+  @override
+  Future<Appointment> cancel({required String patientId, required String appointmentId}) async {
+    await _db.simulateLatency();
+    final index = _db.appointments.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
+    // Like the real API: a missing appointment and someone else's look the same.
+    if (index < 0) throw const AppError(ErrorKind.forbidden, 'not found or not yours');
+    final current = _db.appointments[index];
+    if (!current.holdsSlot) throw const AppError(ErrorKind.conflict, 'not cancellable');
+    final cancelled = current.copyWith(status: AppointmentStatus.cancelled);
+    _db.appointments[index] = cancelled;
+    return cancelled;
   }
 }
