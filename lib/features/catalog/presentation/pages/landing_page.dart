@@ -62,7 +62,7 @@ class _LandingPageState extends State<LandingPage> {
                 );
               },
             ),
-            const SiteFooter(),
+            SiteFooter(demo: AppScope.of(context).isDemo),
           ],
         ),
       ),

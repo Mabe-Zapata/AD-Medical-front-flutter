@@ -70,6 +70,7 @@ void main() {
     await tester.pumpAndSettle();
     // The real API has no demo account: the form starts empty and says nothing about a demo.
     expect(find.textContaining('Cuenta demo'), findsNothing);
+    expect(find.textContaining('Versión demo'), findsNothing);
 
     await tester.enterText(find.widgetWithText(TextField, 'Correo electrónico'), 'paciente@demo.test');
     await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), 'whatever');

@@ -83,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          const SiteFooter(),
+          SiteFooter(demo: AppScope.of(context).isDemo),
         ],
       ),
     ),

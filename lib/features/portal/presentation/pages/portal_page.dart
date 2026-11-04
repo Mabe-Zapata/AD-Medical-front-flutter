@@ -152,7 +152,7 @@ class _PortalPageState extends State<PortalPage> {
                     ),
                   ),
                 ),
-                const SiteFooter(),
+                SiteFooter(demo: AppScope.of(context).isDemo),
               ],
             ),
           );

@@ -179,7 +179,7 @@ class _BookingViewState extends State<_BookingView> {
                   ),
                 ),
               ),
-              const SiteFooter(),
+              SiteFooter(demo: AppScope.of(context).isDemo),
             ],
           ),
         );
