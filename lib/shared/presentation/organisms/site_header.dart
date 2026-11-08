@@ -12,6 +12,7 @@ class SiteHeader extends StatelessWidget {
     required this.signedIn,
     required this.onSection,
     required this.onSignIn,
+    required this.onRegister,
     required this.onOpenPortal,
     required this.onSignOut,
   });
@@ -19,6 +20,7 @@ class SiteHeader extends StatelessWidget {
   final bool signedIn;
   final void Function(String id) onSection;
   final VoidCallback onSignIn;
+  final VoidCallback onRegister;
   final VoidCallback onOpenPortal;
   final VoidCallback onSignOut;
 
@@ -79,8 +81,11 @@ class SiteHeader extends StatelessWidget {
               onPressed: onSignOut,
               icon: const Icon(Icons.logout, size: 20, color: Tokens.muted),
             ),
-          ] else
+          ] else ...[
+            if (wide) TextButton(onPressed: onRegister, child: const Text('Crear cuenta')),
+            const SizedBox(width: 8),
             _SignInPill(label: wide ? 'INICIAR SESIÓN' : 'ENTRAR', onPressed: onSignIn),
+          ],
         ],
       ),
     );

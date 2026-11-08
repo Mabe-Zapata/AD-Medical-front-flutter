@@ -32,4 +32,15 @@ class Appointment {
   /// Active appointments hold their slot (see UX_citas_horario_activa).
   bool get holdsSlot =>
       status == AppointmentStatus.pendingPayment || status == AppointmentStatus.confirmed;
+
+  Appointment copyWith({AppointmentStatus? status}) => Appointment(
+    id: id,
+    patientId: patientId,
+    service: service,
+    slot: slot,
+    status: status ?? this.status,
+    bookedAt: bookedAt,
+    reason: reason,
+    reservationExpiresAt: reservationExpiresAt,
+  );
 }

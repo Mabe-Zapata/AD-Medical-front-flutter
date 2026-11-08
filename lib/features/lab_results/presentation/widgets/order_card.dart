@@ -45,7 +45,10 @@ class OrderCard extends StatelessWidget {
                   Text('Orden ${order.id}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Tokens.slate900)),
                   const SizedBox(height: 2),
                   Text(
-                    '${dayLabel(branchTime(order.orderedAt))} · ${order.doctorName}',
+                    [
+                      if (order.orderedAt != null) dayLabel(branchTime(order.orderedAt!)),
+                      ?order.doctorName,
+                    ].join(' · '),
                     style: const TextStyle(color: Tokens.muted, fontSize: 12),
                   ),
                 ],

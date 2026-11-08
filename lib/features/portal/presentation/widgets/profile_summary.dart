@@ -18,7 +18,7 @@ class ProfileSummary extends StatelessWidget {
       spacing: 20,
       runSpacing: 6,
       children: [
-        for (final item in [patient.fullName, patient.email, ?patient.phone, ?document])
+        for (final item in [?patient.fullName, patient.email, ?patient.phone, ?document])
           Text(item, style: const TextStyle(color: Tokens.muted, fontSize: 13)),
       ],
     );

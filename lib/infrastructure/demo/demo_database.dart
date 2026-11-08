@@ -58,6 +58,8 @@ class DemoDatabase {
     documentType: 'CEDULA',
     documentNumber: '1712345678',
     birthDate: DateTime(1990, 4, 12),
+    roles: const ['PACIENTE'],
+    permissions: const ['citas.reservar', 'citas.leer_propias', 'resultados.leer_propios'],
   );
 
   final appointments = <Appointment>[];
