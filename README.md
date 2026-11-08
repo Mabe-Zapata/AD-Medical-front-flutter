@@ -20,15 +20,11 @@ Only `lib/app/dependencies.dart` knows which repositories are wired; use cases, 
 
 ```bash
 flutter pub get
-<<<<<<< HEAD
-flutter run -d chrome --web-port 8081
-=======
->>>>>>> origin/develop
 flutter test
 flutter analyze
 
-# Demo
-flutter run -d chrome
+# Demo (port 8081, the one FLUTTER_FRONT_URL points to)
+flutter run -d chrome --web-port 8081
 
 # API: build, then serve build/web and proxy /api to the backend (no CORS needed)
 flutter build web --dart-define=API_BASE_URL=/api/v1
