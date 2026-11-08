@@ -4,6 +4,9 @@ import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart
 import 'package:medicalbooking_portal/features/auth/domain/repositories/auth_repository.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
+/// Token that the demo accepts as a valid email link: `#/verificar?token=demo`.
+const demoVerificationToken = 'demo';
+
 class DemoAuthRepository implements AuthRepository {
   DemoAuthRepository(this._db);
 
@@ -25,9 +28,8 @@ class DemoAuthRepository implements AuthRepository {
   @override
   Future<void> register(NewPatientAccount account) async {
     await _db.simulateLatency();
-    if (account.email == DemoDatabase.demoEmail || _registered.containsKey(account.email)) {
-      throw const AppError(ErrorKind.conflict, 'an account with this email already exists');
-    }
+    // Like the real API: the same answer whether or not the email already has an account.
+    if (account.email == DemoDatabase.demoEmail || _registered.containsKey(account.email)) return;
     _registered[account.email] = (
       password: account.password,
       patient: Patient(
@@ -35,11 +37,19 @@ class DemoAuthRepository implements AuthRepository {
         email: account.email,
         firstName: account.firstName,
         lastName: account.lastName,
-        phone: account.phone,
         roles: const ['PACIENTE'],
         permissions: const ['citas.reservar', 'citas.leer_propias', 'resultados.leer_propios'],
       ),
     );
+  }
+
+  /// The demo activates accounts at once; this only accepts the token the demo link would carry.
+  @override
+  Future<void> verifyEmail(String token) async {
+    await _db.simulateLatency();
+    if (token != demoVerificationToken) {
+      throw const AppError(ErrorKind.validation, 'link invalid, already used or expired');
+    }
   }
 
   @override

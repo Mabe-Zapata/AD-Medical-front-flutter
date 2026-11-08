@@ -17,6 +17,7 @@ class LoginForm extends StatelessWidget {
     required this.passwordError,
     required this.onEdited,
     required this.expired,
+    required this.activationHint,
     required this.demoHint,
     required this.onSubmit,
     required this.onRegister,
@@ -34,6 +35,9 @@ class LoginForm extends StatelessWidget {
   /// Called when a field changes, so the container can clear stale messages.
   final VoidCallback onEdited;
   final bool expired;
+
+  /// Shown after a failed sign-in: the account may simply not be activated yet.
+  final bool activationHint;
   final String? demoHint;
   final VoidCallback onSubmit;
   final VoidCallback onRegister;
@@ -68,7 +72,18 @@ class LoginForm extends StatelessWidget {
         onChanged: (_) => onEdited(),
         onSubmitted: (_) => onSubmit(),
       ),
-      if (error != null) ...[const SizedBox(height: 16), ErrorBanner(error: error!)],
+      if (error != null) ...[
+        const SizedBox(height: 16),
+        ErrorBanner(error: error!),
+        if (activationHint)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              '¿Te acabas de registrar? Activa tu cuenta con el enlace que te enviamos al correo.',
+              style: TextStyle(fontSize: 12.5, color: Tokens.muted, height: 1.4),
+            ),
+          ),
+      ],
       const SizedBox(height: 24),
       SizedBox(
         width: double.infinity,

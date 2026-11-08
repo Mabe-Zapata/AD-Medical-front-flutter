@@ -9,6 +9,7 @@ import 'package:medicalbooking_portal/features/auth/domain/usecases/register_pat
 import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_out.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/verify_email.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/controllers/session_controller.dart';
 import 'package:medicalbooking_portal/features/booking/data/repositories/demo_appointment_repository.dart';
 import 'package:medicalbooking_portal/features/booking/data/repositories/http_appointment_repository.dart';
@@ -36,6 +37,7 @@ class AppDependencies {
   AppDependencies._({
     required this.isDemo,
     required this.session,
+    required this.verifyEmail,
     required this.getCatalog,
     required this.getDaySlots,
     required this.reserveAppointment,
@@ -55,6 +57,7 @@ class AppDependencies {
     return AppDependencies._(
       isDemo: true,
       session: _session(auth, store),
+      verifyEmail: VerifyEmail(auth),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
       getDaySlots: GetDaySlots(appointments),
       reserveAppointment: ReserveAppointment(appointments),
@@ -83,13 +86,15 @@ class AppDependencies {
       token: () => session.token,
       onUnauthorized: () => session.expire(),
     );
-    session = _session(HttpAuthRepository(api), store ?? createSessionStore(), now: now);
+    final auth = HttpAuthRepository(api);
+    session = _session(auth, store ?? createSessionStore(), now: now);
     final appointments = HttpAppointmentRepository(api, now: now);
     final labs = HttpLabResultsRepository(api);
     final content = DemoDatabase(latency: Duration.zero);
     return AppDependencies._(
       isDemo: false,
       session: session,
+      verifyEmail: VerifyEmail(auth),
       getCatalog: GetCatalog(
         StaticCatalogRepository(
           Catalog(
@@ -127,6 +132,7 @@ class AppDependencies {
   final ({String email, String password})? demoCredentials;
 
   final SessionController session;
+  final VerifyEmail verifyEmail;
   final GetCatalog getCatalog;
   final GetDaySlots getDaySlots;
   final ReserveAppointment reserveAppointment;

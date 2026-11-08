@@ -8,7 +8,9 @@ import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  Future<void> pumpApp(WidgetTester tester, {required Size size}) async {
+  Future<void> pumpApp(WidgetTester tester, {required Size size, String route = '/'}) async {
+    tester.platformDispatcher.defaultRouteNameTestValue = route;
+    addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
     // The Ahem test font overflows rows that fit with the real font: layout is checked in the browser.
     final original = FlutterError.onError;
     FlutterError.onError = (details) {
@@ -39,7 +41,6 @@ void main() {
     await type(tester, 'Nombres', 'Ana');
     await type(tester, 'Apellidos', 'Pérez');
     await type(tester, 'Correo electrónico', 'ana@demo.test');
-    await type(tester, 'Teléfono móvil', '99 123 4567');
     await type(tester, 'Contraseña', password);
     await type(tester, 'Confirmar', password);
     await tapText(tester, find.byType(CheckboxListTile).at(0));
@@ -60,7 +61,7 @@ void main() {
   }
 
   group('sign-up modal', () {
-    testWidgets('creates a patient account and signs in', (tester) async {
+    testWidgets('creates the account and asks the person to check their email', (tester) async {
       await pumpApp(tester, size: const Size(1400, 900));
 
       await tester.tap(find.text('Crear cuenta'));
@@ -70,7 +71,23 @@ void main() {
       await fillRegistration(tester);
       await tapText(tester, find.widgetWithText(FilledButton, 'Crear cuenta'));
 
-      expect(find.text('Hola, Ana'), findsOneWidget);
+      // The account is inactive until the email link is opened: there is no automatic sign-in.
+      expect(find.text('Revisa tu correo'), findsOneWidget);
+      expect(find.textContaining('ana@demo.test'), findsOneWidget);
+      expect(find.textContaining('Hola,'), findsNothing);
+    });
+
+    testWidgets('after signing up it goes back to sign-in with the email already typed', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('Crear cuenta'));
+      await tester.pumpAndSettle();
+      await fillRegistration(tester);
+      await tapText(tester, find.widgetWithText(FilledButton, 'Crear cuenta'));
+
+      await tapText(tester, find.text('Ir a iniciar sesión'));
+
+      final email = tester.widget<TextField>(find.widgetWithText(TextField, 'Correo electrónico'));
+      expect(email.controller!.text, 'ana@demo.test');
     });
 
     testWidgets('the button stays disabled until the data use is confirmed', (tester) async {
@@ -192,6 +209,51 @@ void main() {
     });
   });
 
+  group('activation by email link', () {
+    testWidgets('the link opens the verification modal and activates the account', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900), route: '/verificar?token=demo');
+
+      expect(find.text('Tu cuenta está activa'), findsOneWidget);
+      await tapText(tester, find.text('Iniciar sesión'));
+      expect(find.widgetWithText(TextField, 'Contraseña'), findsOneWidget);
+    });
+
+    testWidgets('an invalid, used or expired link is explained in Spanish', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900), route: '/verificar?token=viejo');
+
+      expect(find.text('No pudimos activar tu cuenta'), findsOneWidget);
+      expect(find.text('El enlace no es válido, ya se usó o venció.'), findsOneWidget);
+      expect(find.textContaining('token'), findsNothing);
+    });
+
+    testWidgets('a link without a token fails without calling the server', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900), route: '/verificar');
+
+      expect(find.text('No pudimos activar tu cuenta'), findsOneWidget);
+    });
+
+    testWidgets('closing the modal leaves the landing page', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900), route: '/verificar?token=demo');
+
+      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mantente sano'), findsOneWidget);
+    });
+
+    testWidgets('a failed sign-in reminds the person to activate the account', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await type(tester, 'Contraseña', 'otra-clave');
+
+      await tapText(tester, find.widgetWithText(FilledButton, 'Iniciar sesión'));
+
+      expect(find.text('Correo o contraseña incorrectos.'), findsOneWidget);
+      expect(find.textContaining('Activa tu cuenta con el enlace'), findsOneWidget);
+    });
+  });
+
   group('booking modal', () {
     testWidgets('reserves in two steps and lands on the portal', (tester) async {
       await pumpApp(tester, size: const Size(1400, 900));
@@ -240,7 +302,7 @@ void main() {
       await fillRegistration(tester);
       await tapText(tester, find.widgetWithText(FilledButton, 'Crear cuenta'));
 
-      expect(find.text('Hola, Ana'), findsOneWidget);
+      expect(find.text('Revisa tu correo'), findsOneWidget);
     });
 
     testWidgets('booking works on a phone', (tester) async {

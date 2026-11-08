@@ -35,6 +35,7 @@ class MedicalBookingApp extends StatefulWidget {
 
 class _MedicalBookingAppState extends State<MedicalBookingApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
+  late final _router = AppRouter(widget.dependencies);
   late bool _wasSignedIn = widget.dependencies.session.patient != null;
 
   @override
@@ -74,8 +75,8 @@ class _MedicalBookingAppState extends State<MedicalBookingApp> {
       locale: const Locale('es'),
       supportedLocales: const [Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      initialRoute: Routes.home,
-      onGenerateRoute: AppRouter(widget.dependencies).onGenerateRoute,
+      onGenerateInitialRoutes: _router.initialRoutes,
+      onGenerateRoute: _router.onGenerateRoute,
     ),
   );
 }

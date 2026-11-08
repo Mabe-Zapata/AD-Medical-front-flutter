@@ -57,12 +57,10 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Creates the patient account and signs in with it. The role is always patient: this app is the
-  /// patients' portal. Throws `AppError` (validation, conflict, network...).
-  Future<void> register(NewPatientAccount account) async {
-    final created = await _register(account);
-    await signIn(created.email, created.password);
-  }
+  /// Creates the patient account. It stays inactive until the person opens the link sent by email, so this
+  /// does not sign in. The role is always patient: this app is the patients' portal. Returns the normalized
+  /// account that was sent. Throws `AppError` (validation, network...).
+  Future<NewPatientAccount> register(NewPatientAccount account) => _register(account);
 
   void signOut([EndReason reason = EndReason.closed]) {
     _timer?.cancel();

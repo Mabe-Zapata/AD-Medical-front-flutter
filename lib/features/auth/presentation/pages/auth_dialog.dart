@@ -6,6 +6,7 @@ import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/widgets/login_form.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/widgets/register_form.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/widgets/registration_sent.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/section_label.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/two_panel_modal.dart';
@@ -44,6 +45,12 @@ class _AuthDialogState extends State<AuthDialog> {
   String? _emailError;
   String? _passwordError;
 
+  /// Set once the sign-up was accepted: the person must now open the link sent by email.
+  String? _registeredEmail;
+
+  /// The last sign-in failed with wrong credentials: maybe the account is not activated yet.
+  bool _activationHint = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -67,25 +74,18 @@ class _AuthDialogState extends State<AuthDialog> {
     _error = null;
     _emailError = null;
     _passwordError = null;
+    _activationHint = false;
   });
 
-  Future<void> _run(Future<void> Function() action, {Map<ErrorKind, String> overrides = const {}}) async {
-    final navigator = Navigator.of(context);
+  /// After a sign-up the person goes back to sign in, with the email already typed.
+  void _goToLogin() {
+    final email = _registeredEmail;
     setState(() {
-      _busy = true;
-      _error = null;
+      _registeredEmail = null;
+      if (email != null) _email.text = email;
+      if (_demo == null) _password.clear();
     });
-    try {
-      await action();
-      if (mounted) navigator.pushReplacementNamed(safeNext(widget.next));
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = describeError(error, overrides: overrides);
-        });
-      }
-    }
+    _switchTo(AuthMode.login);
   }
 
   void _signIn() {
@@ -103,26 +103,50 @@ class _AuthDialogState extends State<AuthDialog> {
       return;
     }
     final session = AppScope.of(context).session;
-    _run(() => session.signIn(_email.text, _password.text));
+    final navigator = Navigator.of(context);
+    _run(() async {
+      await session.signIn(_email.text, _password.text);
+      if (mounted) navigator.pushReplacementNamed(safeNext(widget.next));
+    });
   }
 
   void _register(NewPatientAccount account) {
     final session = AppScope.of(context).session;
-    _run(
-      () => session.register(account),
-      overrides: const {
-        ErrorKind.conflict: 'Ya existe una cuenta con ese correo. Inicia sesión.',
-        ErrorKind.notFound: 'El registro todavía no está disponible en el servidor. Inténtalo más tarde.',
-      },
-    );
+    _run(() async {
+      final sent = await session.register(account);
+      if (mounted) setState(() => _registeredEmail = sent.email);
+    });
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _activationHint = false;
+    });
+    try {
+      await action();
+      if (mounted) setState(() => _busy = false);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = describeError(error);
+          _activationHint = error is AppError && error.kind == ErrorKind.invalidCredentials;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sent = _registeredEmail != null;
     final login = _mode == AuthMode.login;
     return TwoPanelModal(
       tag: 'Portal del paciente',
-      headline: login ? 'Tus citas y resultados, en un solo lugar.' : 'Crea tu cuenta de paciente.',
+      headline: sent
+          ? 'Casi listo: activa tu cuenta.'
+          : (login ? 'Tus citas y resultados, en un solo lugar.' : 'Crea tu cuenta de paciente.'),
       bullets: const [
         'Reserva tu cita de laboratorio en minutos.',
         'Consulta tus resultados validados cuando estén listos.',
@@ -130,37 +154,45 @@ class _AuthDialogState extends State<AuthDialog> {
       ],
       footerLabel: login ? 'Acceso de pacientes' : 'Cuenta de paciente',
       footerNote: login ? 'Sesión segura' : 'Registro gratuito',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionLabel(login ? 'Bienvenido' : 'Nueva cuenta'),
-          const SizedBox(height: 8),
-          Text(
-            login ? 'Iniciar sesión' : 'Crear cuenta',
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Tokens.slate900),
-          ),
-          const SizedBox(height: 20),
-          if (login)
-            LoginForm(
-              email: _email,
-              password: _password,
-              busy: _busy,
-              error: _error,
-              emailError: _emailError,
-              passwordError: _passwordError,
-              onEdited: () => setState(() {
-                _emailError = null;
-                _passwordError = null;
-              }),
-              expired: widget.expired,
-              demoHint: _demo == null ? null : 'Cuenta demo: ${_demo!.email} / ${_demo!.password}.',
-              onSubmit: _signIn,
-              onRegister: () => _switchTo(AuthMode.register),
-            )
-          else
-            RegisterForm(busy: _busy, error: _error, onSubmit: _register, onLogin: () => _switchTo(AuthMode.login)),
-        ],
-      ),
+      child: sent
+          ? RegistrationSent(email: _registeredEmail!, onLogin: _goToLogin)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionLabel(login ? 'Bienvenido' : 'Nueva cuenta'),
+                const SizedBox(height: 8),
+                Text(
+                  login ? 'Iniciar sesión' : 'Crear cuenta',
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Tokens.slate900),
+                ),
+                const SizedBox(height: 20),
+                if (login)
+                  LoginForm(
+                    email: _email,
+                    password: _password,
+                    busy: _busy,
+                    error: _error,
+                    emailError: _emailError,
+                    passwordError: _passwordError,
+                    onEdited: () => setState(() {
+                      _emailError = null;
+                      _passwordError = null;
+                    }),
+                    expired: widget.expired,
+                    activationHint: _activationHint,
+                    demoHint: _demo == null ? null : 'Cuenta demo: ${_demo!.email} / ${_demo!.password}.',
+                    onSubmit: _signIn,
+                    onRegister: () => _switchTo(AuthMode.register),
+                  )
+                else
+                  RegisterForm(
+                    busy: _busy,
+                    error: _error,
+                    onSubmit: _register,
+                    onLogin: () => _switchTo(AuthMode.login),
+                  ),
+              ],
+            ),
     );
   }
 }

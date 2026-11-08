@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/policies/registration_policy.dart';
@@ -8,9 +7,6 @@ import 'package:medicalbooking_portal/shared/presentation/atoms/strength_bar.dar
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/password_field.dart';
-
-/// Country code of the branch; the backend stores phones in international format.
-const _countryCode = '+593';
 
 const _gap = 14.0;
 
@@ -32,7 +28,6 @@ class _RegisterFormState extends State<RegisterForm> {
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   final _email = TextEditingController();
-  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _terms = false;
@@ -41,19 +36,17 @@ class _RegisterFormState extends State<RegisterForm> {
 
   @override
   void dispose() {
-    for (final controller in [_firstName, _lastName, _email, _phone, _password, _confirm]) {
+    for (final controller in [_firstName, _lastName, _email, _password, _confirm]) {
       controller.dispose();
     }
     super.dispose();
   }
 
   NewPatientAccount _account() {
-    final national = _phone.text.replaceAll(RegExp(r'\D'), '').replaceFirst(RegExp('^0'), '');
     return NewPatientAccount(
       firstName: _firstName.text,
       lastName: _lastName.text,
       email: _email.text,
-      phone: '$_countryCode$national',
       password: _password.text,
     ).normalized();
   }
@@ -101,25 +94,13 @@ class _RegisterFormState extends State<RegisterForm> {
           ),
           const SizedBox(height: _gap),
           TextField(
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]'))],
-            decoration: InputDecoration(
-              labelText: 'Teléfono móvil',
-              prefixText: '$_countryCode ',
-              errorText: _error(RegistrationProblem.phone),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: _gap),
-          TextField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
               labelText: 'Correo electrónico',
               prefixIcon: const Icon(Icons.mail_outline, size: 20),
-              helperText: 'Usaremos este correo para enviarte las notificaciones de tus citas y resultados.',
-              helperMaxLines: 2,
+              helperText: 'Te enviaremos un enlace para activar tu cuenta y, después, las notificaciones de tus citas y resultados.',
+              helperMaxLines: 3,
               errorText: _error(RegistrationProblem.email),
             ),
             onChanged: (_) => setState(() {}),

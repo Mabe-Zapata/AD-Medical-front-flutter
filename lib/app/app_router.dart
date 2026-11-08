@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/auth_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/pages/landing_page.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/pages/portal_page.dart';
@@ -34,10 +35,19 @@ class AppRouter {
         ),
       ),
       Routes.register => _modal(settings, AuthDialog(next: argument, mode: AuthMode.register)),
+      Routes.verify => _modal(settings, VerifyEmailDialog(token: uri.queryParameters['token'])),
       Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
       _ => _page(settings, const LandingPage()),
     };
+  }
+
+  /// What the app shows when it opens. The link of the activation email (`#/verificar?token=...`) opens
+  /// the verification modal over the landing page; any other address opens the landing page.
+  List<Route<dynamic>> initialRoutes(String initialRoute) {
+    final home = onGenerateRoute(const RouteSettings(name: Routes.home));
+    if (Uri.tryParse(initialRoute)?.path != Routes.verify) return [home];
+    return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
   }
 
   /// Flutter web only scrolls with the keyboard (arrows, Page Up/Down, Space) when something inside the

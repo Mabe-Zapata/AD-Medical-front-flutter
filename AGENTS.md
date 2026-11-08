@@ -54,14 +54,17 @@ lib/features/<f>/{domain,data,presentation}
 | Confirmación de pago | No se muestra |
 | `/me` solo trae id, roles y permisos | Se muestra el correo |
 | Orden sin fechas/médico/nombre de pruebas | Campos opcionales; pruebas como "Prueba N" |
-| Registro público de pacientes (`POST /users` exige administrador) | El modal de registro envía `POST /auth/register` (contrato propuesto, ver abajo); si el servidor responde 404 dice que aún no está disponible |
+| Reenvío del correo de activación y teléfono en el registro | El enlace vence a las 24 h y no hay forma de pedir otro; el teléfono no se pide |
 
 Si el backend cierra una brecha, actualiza el repositorio `http_*`, quita la limitación de esta tabla y del README.
 
 ## Modales y registro
 
 - Iniciar sesión, crear cuenta y reservar cita son **modales** sobre la página de origen (`shared/presentation/layout/modal_route.dart` + `organisms/two_panel_modal.dart`): panel de marca a la izquierda y la tarea a la derecha; en móvil (< 760 px) es una hoja a pantalla completa. Siguen siendo rutas con nombre (`/login`, `/registro`, `/book`), así que el botón atrás funciona. Una pantalla de tarea nueva se hace como modal igual.
-- Registro: el rol **no se envía**; esta app solo crea pacientes y el servidor debe fijarlo. Campos: nombres, apellidos, correo, teléfono (+593), contraseña de al menos 12 caracteres (la regla del backend, `MIN_PASSWORD_LENGTH`) y aceptar términos. Contrato propuesto, pendiente de que el backend lo implemente: `POST /api/v1/auth/register` con `{email, password, first_name, last_name, phone}`, público y con límite de intentos. Tras registrar, la app inicia sesión con las mismas credenciales.
+- Registro (`POST /api/v1/auth/register`, ya implementado en el backend): solo se envían `email`, `password` (mínimo 12), `first_name` y `last_name`; el servidor rechaza cualquier otro campo con 422 (por eso no hay teléfono ni rol) y fija el rol a paciente. Responde siempre 202, exista o no el correo, así que la app nunca dice "ese correo ya existe". La cuenta queda **inactiva** hasta abrir el enlace del correo (24 h, un solo uso): tras registrarse se muestra "Revisa tu correo", sin iniciar sesión.
+- Activación: el enlace llega como `#/verificar?token=…`; la app abre el modal de verificación sobre la página de inicio y llama a `GET /auth/verify-email`. La ruta se lee al arrancar (`AppRouter.initialRoutes`). Hoy el correo del backend enlaza al API (devuelve JSON); para que abra el portal debe apuntar a `FLUTTER_FRONT_URL/#/verificar?token=…`. En modo demo el token válido es `demo`.
+- Un login fallido muestra el recordatorio de activar la cuenta: el backend responde igual a "contraseña mal" y "cuenta sin activar".
+- Faltan en el backend: reenviar el correo de activación (si el enlace vence la cuenta queda bloqueada) y aceptar el teléfono (la columna existe en `usuarios`).
 - Los textos de campos, errores y botones del formulario están en `features/auth/presentation/widgets/`; las reglas (qué es válido) en `features/auth/domain/policies/registration_policy.dart`.
 
 ## Errores (paridad con Angular)

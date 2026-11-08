@@ -19,8 +19,8 @@ class HttpAuthRepository implements AuthRepository {
     );
   }
 
-  /// Proposed contract: the backend has no public sign-up yet (`POST /users` needs an administrator).
-  /// The role is not sent: the server must fix it to patient. A 404/405 means it is not deployed.
+  /// `POST /auth/register`: public, answers 202 whatever the email. The role is not sent; the server fixes it
+  /// to patient, and it rejects any field it does not know (so no phone).
   @override
   Future<void> register(NewPatientAccount account) async {
     await _api.post(
@@ -30,10 +30,14 @@ class HttpAuthRepository implements AuthRepository {
         'password': account.password,
         'first_name': account.firstName,
         'last_name': account.lastName,
-        'phone': account.phone,
       },
       authenticated: false,
     );
+  }
+
+  @override
+  Future<void> verifyEmail(String token) async {
+    await _api.get('/auth/verify-email', query: {'token': token});
   }
 
   @override

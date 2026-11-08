@@ -4,10 +4,15 @@ import 'package:medicalbooking_portal/features/auth/data/repositories/demo_auth_
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/policies/registration_policy.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/register_patient.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/verify_email.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
-NewPatientAccount _account({String email = 'ana@demo.test', String password = 'una-clave-larga-1'}) =>
-    NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: email, phone: '+593991234567', password: password);
+const _longEnough = 'una-clave-larga-1';
+
+NewPatientAccount _account({String email = 'ana@demo.test', String secret = _longEnough}) =>
+    NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: email, password: secret);
+
+DemoAuthRepository _repository() => DemoAuthRepository(DemoDatabase(latency: Duration.zero));
 
 void main() {
   group('registration policy', () {
@@ -16,15 +21,15 @@ void main() {
     });
 
     test('reports every field that is wrong', () {
-      const account = NewPatientAccount(firstName: '', lastName: ' ', email: 'no-es-correo', phone: '123', password: 'corta');
+      const account = NewPatientAccount(firstName: '', lastName: ' ', email: 'no-es-correo', password: 'corta');
 
       expect(registrationProblems(account.normalized()), RegistrationProblem.values);
     });
 
     test('the password minimum is the one the backend enforces', () {
       expect(minPasswordLength, 12);
-      expect(registrationProblems(_account(password: '12345678901')), [RegistrationProblem.passwordLength]);
-      expect(registrationProblems(_account(password: '123456789012')), isEmpty);
+      expect(registrationProblems(_account(secret: '12345678901')), [RegistrationProblem.passwordLength]);
+      expect(registrationProblems(_account(secret: '123456789012')), isEmpty);
     });
 
     test('measures the strength from 0 to 4', () {
@@ -38,27 +43,19 @@ void main() {
 
   group('RegisterPatient', () {
     test('normalizes the account before sending it', () async {
-      final repository = DemoAuthRepository(DemoDatabase(latency: Duration.zero));
-      final sent = await RegisterPatient(repository)(
-        const NewPatientAccount(
-          firstName: ' Ana ',
-          lastName: 'Pérez ',
-          email: ' ANA@Demo.test ',
-          phone: '+593 99-123 4567',
-          password: 'una-clave-larga-1',
-        ),
+      final sent = await RegisterPatient(_repository())(
+        const NewPatientAccount(firstName: ' Ana ', lastName: 'Pérez ', email: ' ANA@Demo.test ', password: _longEnough),
       );
 
       expect(sent.email, 'ana@demo.test');
       expect(sent.firstName, 'Ana');
-      expect(sent.phone, '+593991234567');
     });
 
     test('refuses an invalid account without calling the repository', () async {
-      final repository = DemoAuthRepository(DemoDatabase(latency: Duration.zero));
+      final repository = _repository();
 
       await expectLater(
-        RegisterPatient(repository)(_account(password: 'corta')),
+        RegisterPatient(repository)(_account(secret: 'corta')),
         throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.validation)),
       );
       await expectLater(
@@ -67,18 +64,38 @@ void main() {
       );
     });
 
-    test('the new account can sign in and a repeated email is a conflict', () async {
-      final repository = DemoAuthRepository(DemoDatabase(latency: Duration.zero));
+    test('the new account can sign in, and a repeated email gets the same answer', () async {
+      final repository = _repository();
       await RegisterPatient(repository)(_account());
 
-      final token = await repository.login(email: 'ana@demo.test', password: 'una-clave-larga-1');
+      final token = await repository.login(email: 'ana@demo.test', password: _longEnough);
       final patient = await repository.fetchProfile(token: token.token, email: 'ana@demo.test');
 
       expect(patient.roles, ['PACIENTE']);
       expect(patient.displayName, 'Ana Pérez');
+      // The real API answers 202 whether or not the email exists, so the demo must not reveal it either.
+      await RegisterPatient(repository)(_account());
+    });
+  });
+
+  group('VerifyEmail', () {
+    test('activates with the token of the link', () async {
+      await VerifyEmail(_repository())(' $demoVerificationToken ');
+    });
+
+    test('a missing or blank token is refused before any call', () async {
+      for (final token in [null, '', '   ']) {
+        await expectLater(
+          VerifyEmail(_repository())(token),
+          throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.validation)),
+        );
+      }
+    });
+
+    test('an invalid, used or expired link is a validation error', () async {
       await expectLater(
-        RegisterPatient(repository)(_account()),
-        throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.conflict)),
+        VerifyEmail(_repository())('otro-token'),
+        throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.validation)),
       );
     });
   });
