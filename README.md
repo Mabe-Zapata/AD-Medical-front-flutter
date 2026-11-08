@@ -23,8 +23,8 @@ flutter pub get
 flutter test
 flutter analyze
 
-# Demo
-flutter run -d chrome
+# Demo (port 8081, the one FLUTTER_FRONT_URL points to)
+flutter run -d chrome --web-port 8081
 
 # API: build, then serve build/web and proxy /api to the backend (no CORS needed)
 flutter build web --dart-define=API_BASE_URL=/api/v1
@@ -40,6 +40,24 @@ Build-time settings (`--dart-define`):
 | --- | --- |
 | `API_BASE_URL` | Absolute or origin-relative API root. Empty means demo mode. |
 | `SERVICES_JSON` | Bookable services of the environment: `[{"id":"<uuid>","name":"...","durationMin":20,"basePrice":8}]`. Without it the demo services are used and a real reservation is refused (their ids are not UUIDs of that backend). |
+
+## Ports and URLs
+
+| Piece | URL (local) | Where it is set |
+| --- | --- | --- |
+| Patient portal (Flutter web) | `http://localhost:8081` | `flutter run -d chrome --web-port 8081` |
+| Staff system (Angular) | `http://localhost:4200` | `ng serve` default |
+| Backend API (Flask) | `http://localhost:5000` | `flask --app medicalbooking.app:create_app run --port 5000` |
+
+The backend builds links in emails from these variables in its `.env`:
+
+```dotenv
+FLUTTER_FRONT_URL=http://localhost:8081
+ANGULAR_FRONT_URL=http://localhost:4200
+```
+
+`FLUTTER_FRONT_URL` must match the address where this portal is served. In production, set it to the
+public portal URL (https). Port 8080 is taken on the development machine, so the portal uses 8081.
 
 ## Architecture
 
