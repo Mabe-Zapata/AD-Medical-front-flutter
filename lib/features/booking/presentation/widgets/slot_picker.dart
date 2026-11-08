@@ -3,6 +3,8 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/format/es_format.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
 
 /// Day chips plus the grid of half-hour slots for the chosen day.
 class SlotPicker extends StatelessWidget {
@@ -13,6 +15,8 @@ class SlotPicker extends StatelessWidget {
     required this.slots,
     required this.selectedSlot,
     required this.loading,
+    required this.error,
+    required this.footnote,
     required this.onDay,
     required this.onSlot,
   });
@@ -22,6 +26,8 @@ class SlotPicker extends StatelessWidget {
   final List<TimeSlot> slots;
   final TimeSlot? selectedSlot;
   final bool loading;
+  final ErrorView? error;
+  final String footnote;
   final ValueChanged<DateTime> onDay;
   final ValueChanged<TimeSlot> onSlot;
 
@@ -57,14 +63,17 @@ class SlotPicker extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 24),
           child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
         )
+      else if (error != null)
+        InfoBanner(message: error!.message, color: Tokens.danger, icon: Icons.error_outline)
+      else if (slots.isEmpty)
+        const Text(
+          'No hay horarios disponibles este día. Prueba con otra fecha.',
+          style: TextStyle(color: Tokens.muted),
+        )
       else
         Wrap(spacing: 10, runSpacing: 10, children: [for (final slot in slots) _SlotButton(slot, selectedSlot?.id == slot.id, onSlot)]),
       const SizedBox(height: 14),
-      const Text(
-        'Las horas tachadas no están disponibles. Demo: las 10:30 parecen libres, pero otro paciente '
-        'siempre las toma al confirmar, para mostrar que la disponibilidad se valida de nuevo.',
-        style: TextStyle(fontSize: 12, color: Tokens.muted, height: 1.5),
-      ),
+      Text(footnote, style: const TextStyle(fontSize: 12, color: Tokens.muted, height: 1.5)),
     ],
   );
 }

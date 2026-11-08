@@ -4,22 +4,25 @@ import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_header.dart';
 
 class SiteFooter extends StatelessWidget {
-  const SiteFooter({super.key});
+  const SiteFooter({super.key, this.demo = true});
+
+  /// The in-memory demo says its clinical data is fictitious; the API mode must not.
+  final bool demo;
 
   @override
-  Widget build(BuildContext context) => const Constrained(
+  Widget build(BuildContext context) => Constrained(
     child: Padding(
-      padding: EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         spacing: 16,
         runSpacing: 8,
         children: [
           Text(
-            '© 2026 $brandName. Todos los derechos reservados. Versión demo: los datos clínicos son ficticios.',
-            style: TextStyle(fontSize: 12, color: Tokens.slate400),
+            '© 2026 $brandName. Todos los derechos reservados.${demo ? ' Versión demo: los datos clínicos son ficticios.' : ''}',
+            style: const TextStyle(fontSize: 12, color: Tokens.slate400),
           ),
-          Text(
+          const Text(
             'Política de privacidad  •  Términos del servicio',
             style: TextStyle(fontSize: 12, color: Tokens.slate400),
           ),

@@ -6,6 +6,7 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
+import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_lookup_form.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
@@ -37,6 +38,8 @@ class _PortalPageState extends State<PortalPage> {
     _controller = PortalController(
       getMyAppointments: deps.getMyAppointments,
       getMyLabOrders: deps.getMyLabOrders,
+      cancelAppointment: deps.cancelAppointment,
+      lookupLabOrder: deps.lookupLabOrder,
       session: deps.session,
     )..load();
 
@@ -60,16 +63,34 @@ class _PortalPageState extends State<PortalPage> {
     super.dispose();
   }
 
+  Future<void> _confirmCancel(Appointment appointment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Cancelar esta cita?'),
+        content: const Text('El horario quedará libre para otros pacientes.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Volver')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Cancelar cita')),
+        ],
+      ),
+    );
+    if (confirmed == true) await _controller.cancel(appointment);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final session = AppScope.of(context).session;
+    final deps = AppScope.of(context);
     return PageShell(
       child: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          final patient = session.patient;
+          final patient = deps.session.patient;
           if (patient == null) return const SizedBox.shrink();
+          final error = _controller.error;
+          final notice = _controller.notice;
           return SingleChildScrollView(
+            primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
             child: Column(
               children: [
                 Constrained(
@@ -84,7 +105,7 @@ class _PortalPageState extends State<PortalPage> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              'Hola, ${patient.firstName}',
+                              patient.firstName == null ? 'Bienvenido' : 'Hola, ${patient.firstName}',
                               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Tokens.slate900),
                             ),
                             GradientButton(
@@ -105,20 +126,34 @@ class _PortalPageState extends State<PortalPage> {
                           onSelectionChanged: (selection) => setState(() => _tab = selection.first),
                         ),
                         const SizedBox(height: 20),
+                        if (notice != null) ...[
+                          InfoBanner(message: notice, color: Tokens.success, icon: Icons.check_circle_outline),
+                          const SizedBox(height: 16),
+                        ],
+                        if (error != null) ...[
+                          InfoBanner(
+                            message: error.supportCode == null
+                                ? error.message
+                                : '${error.message}\nCódigo de soporte: ${error.supportCode}',
+                            color: Tokens.danger,
+                            icon: Icons.error_outline,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         if (_controller.loading)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),
                             child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
                           )
                         else if (_tab == 0)
-                          ..._appointments()
+                          ..._appointments(isDemo: deps.isDemo)
                         else
-                          ..._results(patient.fullName),
+                          ..._results(patient.displayName, isDemo: deps.isDemo),
                       ],
                     ),
                   ),
                 ),
-                const SiteFooter(),
+                SiteFooter(demo: AppScope.of(context).isDemo),
               ],
             ),
           );
@@ -127,15 +162,29 @@ class _PortalPageState extends State<PortalPage> {
     );
   }
 
-  List<Widget> _appointments() {
+  List<Widget> _appointments({required bool isDemo}) {
     final items = _controller.appointments;
-    if (items.isEmpty) return [const _Empty('Aún no tienes citas.')];
     return [
-      for (final appointment in items) ...[AppointmentCard(appointment), const SizedBox(height: 14)],
+      if (!isDemo) ...[
+        const InfoBanner(
+          message: 'Aquí aparecen las citas que reservaste desde este navegador. El servidor aún no ofrece el listado completo.',
+          color: Tokens.info,
+          icon: Icons.info_outline,
+        ),
+        const SizedBox(height: 16),
+      ],
+      if (items.isEmpty) const _Empty('Aún no tienes citas.'),
+      for (final appointment in items) ...[
+        AppointmentCard(
+          appointment,
+          onCancel: _controller.working ? null : () => _confirmCancel(appointment),
+        ),
+        const SizedBox(height: 14),
+      ],
     ];
   }
 
-  List<Widget> _results(String patientName) {
+  List<Widget> _results(String patientName, {required bool isDemo}) {
     final orders = _controller.orders;
     return [
       const InfoBanner(
@@ -144,7 +193,12 @@ class _PortalPageState extends State<PortalPage> {
         icon: Icons.lock_outline,
       ),
       const SizedBox(height: 16),
-      if (orders.isEmpty) const _Empty('Aún no tienes órdenes de laboratorio.'),
+      if (!isDemo) ...[
+        OrderLookupForm(busy: _controller.working, onSubmit: _controller.lookupOrder),
+        const SizedBox(height: 16),
+      ],
+      if (orders.isEmpty)
+        _Empty(isDemo ? 'Aún no tienes órdenes de laboratorio.' : 'Consulta una orden con su código para ver sus resultados.'),
       for (final order in orders) ...[
         OrderCard(
           order: order,
