@@ -204,7 +204,7 @@ class _HeroCopy extends StatelessWidget {
         Text('Mantente sano', style: style),
         ShaderMask(
           shaderCallback: (rect) =>
-              const LinearGradient(colors: [Color(0xFFEA5B0C), Color(0xFFF47F26)]).createShader(rect),
+              LinearGradient(colors: [Tokens.gradientStart, Tokens.gradientEnd]).createShader(rect),
           child: Text('y fuerte', style: style.copyWith(color: Colors.white)),
         ),
         const SizedBox(height: 24),

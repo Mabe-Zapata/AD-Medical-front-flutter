@@ -20,11 +20,11 @@ class SiteFooter extends StatelessWidget {
         children: [
           Text(
             '© 2026 $brandName. Todos los derechos reservados.${demo ? ' Versión demo: los datos clínicos son ficticios.' : ''}',
-            style: const TextStyle(fontSize: 12, color: Tokens.slate400),
+            style: const TextStyle(fontSize: 12, color: Tokens.slate500),
           ),
           const Text(
             'Política de privacidad  •  Términos del servicio',
-            style: TextStyle(fontSize: 12, color: Tokens.slate400),
+            style: TextStyle(fontSize: 12, color: Tokens.slate500),
           ),
         ],
       ),

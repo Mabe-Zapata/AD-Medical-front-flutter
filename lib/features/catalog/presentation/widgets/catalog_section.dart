@@ -77,7 +77,7 @@ class _TestCard extends StatelessWidget {
         Text(test.description ?? '', style: const TextStyle(color: Tokens.muted, fontSize: 13, height: 1.5)),
         if (test.defaultUnit != null) ...[
           const SizedBox(height: 10),
-          Text('Unidad: ${test.defaultUnit}', style: const TextStyle(color: Tokens.slate400, fontSize: 12)),
+          Text('Unidad: ${test.defaultUnit}', style: const TextStyle(color: Tokens.slate500, fontSize: 12)),
         ],
       ],
     ),

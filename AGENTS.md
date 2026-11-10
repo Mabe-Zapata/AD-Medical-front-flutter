@@ -10,6 +10,7 @@ paciente**; el sistema del personal vive en `../frontend-angular`. Ambos deben v
 3. **Mismas guías de estilo que Angular**: paleta naranja, tipografía, componentes y arquitectura equivalentes. Si cambias un token aquí, cámbialo también en `../frontend-angular/src/styles.scss` (y viceversa). Tokens en `lib/core/design/tokens.dart`.
 4. **Paridad de comportamiento**: mismos tipos de error, mismo manejo de 401, mismos textos para el mismo caso (ver "Errores").
 5. No guardes secretos ni tokens en URLs, logs ni código. Las credenciales de demo viven solo en `infrastructure/demo`.
+6. **Contraste AA**: todo texto debe cumplir WCAG AA (4.5:1). Los tokens naranja, verde y ámbar ya están calibrados (`test/core/design/contrast_test.dart`); no los aclares ni uses `slate400` o menos para texto.
 
 ## Arquitectura
 
