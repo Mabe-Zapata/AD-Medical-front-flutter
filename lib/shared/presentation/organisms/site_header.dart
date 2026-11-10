@@ -104,7 +104,7 @@ class _LogoMark extends StatelessWidget {
       gradient: const LinearGradient(
         begin: Alignment.bottomLeft,
         end: Alignment.topRight,
-        colors: [Color(0xFFF06110), Color(0xFFF9822A)],
+        colors: [Tokens.gradientStart, Tokens.gradientEnd],
       ),
       boxShadow: [BoxShadow(color: Tokens.orange.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3))],
     ),
