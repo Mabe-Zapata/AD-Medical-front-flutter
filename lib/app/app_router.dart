@@ -6,13 +6,14 @@ import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_em
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/pages/landing_page.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/pages/portal_page.dart';
+import 'package:medicalbooking_portal/features/profile/presentation/pages/profile_dialog.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
 
 class AppRouter {
   const AppRouter(this._dependencies);
 
   /// Pages that need a signed-in patient.
-  static const _protected = {Routes.book, Routes.portal};
+  static const _protected = {Routes.book, Routes.portal, Routes.profile};
 
   final AppDependencies _dependencies;
 
@@ -37,6 +38,7 @@ class AppRouter {
       Routes.register => _modal(settings, AuthDialog(next: argument, mode: AuthMode.register)),
       Routes.verify => _modal(settings, VerifyEmailDialog(token: uri.queryParameters['token'])),
       Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
+      Routes.profile => _modal(settings, const ProfileDialog()),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
       _ => _page(settings, const LandingPage()),
     };

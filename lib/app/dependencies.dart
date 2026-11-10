@@ -25,6 +25,10 @@ import 'package:medicalbooking_portal/features/lab_results/data/repositories/dem
 import 'package:medicalbooking_portal/features/lab_results/data/repositories/http_lab_results_repository.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_my_lab_orders.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/lookup_lab_order.dart';
+import 'package:medicalbooking_portal/features/profile/data/repositories/demo_clinical_profile_repository.dart';
+import 'package:medicalbooking_portal/features/profile/data/repositories/http_clinical_profile_repository.dart';
+import 'package:medicalbooking_portal/features/profile/domain/usecases/save_clinical_profile.dart';
+import 'package:medicalbooking_portal/features/profile/presentation/controllers/clinical_profile_controller.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
 /// Composition root: the only place that knows the concrete repositories.
@@ -38,6 +42,7 @@ class AppDependencies {
     required this.isDemo,
     required this.session,
     required this.verifyEmail,
+    required this.clinicalProfiles,
     required this.getCatalog,
     required this.getDaySlots,
     required this.reserveAppointment,
@@ -58,6 +63,7 @@ class AppDependencies {
       isDemo: true,
       session: _session(auth, store),
       verifyEmail: VerifyEmail(auth),
+      clinicalProfiles: ClinicalProfileController(save: SaveClinicalProfile(DemoClinicalProfileRepository(db))),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
       getDaySlots: GetDaySlots(appointments),
       reserveAppointment: ReserveAppointment(appointments),
@@ -95,6 +101,7 @@ class AppDependencies {
       isDemo: false,
       session: session,
       verifyEmail: VerifyEmail(auth),
+      clinicalProfiles: ClinicalProfileController(save: SaveClinicalProfile(HttpClinicalProfileRepository(api))),
       getCatalog: GetCatalog(
         StaticCatalogRepository(
           Catalog(
@@ -133,6 +140,7 @@ class AppDependencies {
 
   final SessionController session;
   final VerifyEmail verifyEmail;
+  final ClinicalProfileController clinicalProfiles;
   final GetCatalog getCatalog;
   final GetDaySlots getDaySlots;
   final ReserveAppointment reserveAppointment;
@@ -142,5 +150,8 @@ class AppDependencies {
   final LookupLabOrder lookupLabOrder;
 
   /// Stops what the dependencies keep running (the session expiry timer).
-  void dispose() => session.dispose();
+  void dispose() {
+    session.dispose();
+    clinicalProfiles.dispose();
+  }
 }

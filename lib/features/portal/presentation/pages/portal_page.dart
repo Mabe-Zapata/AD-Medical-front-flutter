@@ -10,6 +10,7 @@ import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
+import 'package:medicalbooking_portal/features/profile/presentation/widgets/profile_prompt.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
@@ -116,6 +117,14 @@ class _PortalPageState extends State<PortalPage> {
                         ),
                         const SizedBox(height: 16),
                         ProfileSummary(patient),
+                        const SizedBox(height: 16),
+                        ListenableBuilder(
+                          listenable: deps.clinicalProfiles,
+                          builder: (context, _) => ProfilePrompt(
+                            profile: deps.clinicalProfiles.of(patient.id),
+                            onOpen: () => Navigator.of(context).pushNamed(Routes.profile),
+                          ),
+                        ),
                         const SizedBox(height: 28),
                         SegmentedButton<int>(
                           segments: [
