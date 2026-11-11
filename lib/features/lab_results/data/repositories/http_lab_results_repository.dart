@@ -1,34 +1,35 @@
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
-import 'package:medicalbooking_portal/core/domain/ids.dart';
 import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/repositories/lab_results_repository.dart';
 
-/// Talks to /api/v1/lab/orders. The API cannot list a patient's orders, so the ones opened by
-/// code in this app run are remembered here (keyed by patient).
+/// Talks to /api/v1/lab/orders. The listing carries no results, so each order is read with its results.
 class HttpLabResultsRepository implements LabResultsRepository {
   HttpLabResultsRepository(this._api);
 
+  /// How many of the newest orders are opened with their results.
+  static const _newest = 20;
+
   final ApiClient _api;
-  final List<LabOrder> _known = [];
 
   @override
-  Future<List<LabOrder>> ordersOf(String patientId) async =>
-      _known.where((o) => o.patientId == patientId).toList();
+  Future<List<LabOrder>> ordersOf(String patientId) async {
+    final list = await _api.get('/lab/orders', query: {'limit': '$_newest'}) as Map<String, dynamic>;
+    final ids = [for (final item in list['items'] as List) (item as Map<String, dynamic>)['id'] as String];
+    final orders = await Future.wait(ids.map((id) => _read(id, patientId)));
+    // The listing is newest first and so is the result.
+    return orders.whereType<LabOrder>().toList();
+  }
 
-  @override
-  Future<LabOrder> findOrder({required String patientId, required String code}) async {
-    if (!isUuid(code)) {
-      throw const AppError(ErrorKind.validation, 'the order code is not valid');
+  /// One order with its results, or null when it cannot be read: one bad order must not hide the others.
+  Future<LabOrder?> _read(String id, String patientId) async {
+    try {
+      final order = await _api.get('/lab/orders/$id') as Map<String, dynamic>;
+      final results = await _api.get('/lab/orders/$id/results') as Map<String, dynamic>;
+      return _order(order, results, patientId);
+    } on AppError {
+      return null;
     }
-    final id = code.trim().toLowerCase();
-    final order = await _api.get('/lab/orders/$id') as Map<String, dynamic>;
-    final results = await _api.get('/lab/orders/$id/results') as Map<String, dynamic>;
-    final mapped = _order(order, results, patientId);
-    _known
-      ..removeWhere((o) => o.id == mapped.id && o.patientId == patientId)
-      ..insert(0, mapped);
-    return mapped;
   }
 
   LabOrder _order(Map<String, dynamic> order, Map<String, dynamic> results, String patientId) {

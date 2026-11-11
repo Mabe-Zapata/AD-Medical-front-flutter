@@ -8,6 +8,8 @@ import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/demo_payment_repository.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/http_payment_repository.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
 http.Response _json(Object body, int status) =>
@@ -41,7 +43,7 @@ void main() {
     test('invoices the appointment, then opens the checkout of that invoice', () async {
       final page = await repository().startCheckout(patientId: 'u1', appointmentId: 'cita-1');
 
-      expect(page, Uri.parse(stripe));
+      expect(page, isA<RedirectTo>().having((r) => r.page, 'page', Uri.parse(stripe)));
       expect(sent.map((r) => '${r.method} ${r.url.path}'), ['POST /api/v1/invoices', 'POST /api/v1/payments/checkout']);
       expect(jsonDecode(sent[0].body), {'cita_id': 'cita-1'});
       expect(jsonDecode(sent[1].body), {'factura_id': 'inv-1'});
@@ -58,6 +60,25 @@ void main() {
       expect(keys.toSet(), hasLength(1));
     });
 
+    test('an answer with a client secret opens the embedded form, not a redirect', () async {
+      final api = ApiClient(
+        client: MockClient(
+          (request) async => request.url.path == '/api/v1/invoices'
+              ? _json({'id': 'inv-1'}, 201)
+              : _json({'pago_id': 'p-1', 'client_secret': 'cs_test_x_secret_y', 'publishable_key': 'pk_test_z'}, 201),
+        ),
+        baseUrl: 'http://api.test/api/v1',
+        token: () => 'jwt',
+      );
+
+      final start = await HttpPaymentRepository(api).startCheckout(patientId: 'u1', appointmentId: 'cita-1');
+
+      expect(
+        start,
+        isA<Embedded>().having((e) => e.clientSecret, 'secret', 'cs_test_x_secret_y').having((e) => e.publishableKey, 'key', 'pk_test_z'),
+      );
+    });
+
     test('never sends the patient to a page that is not https Stripe', () async {
       final repo = repository();
       for (final url in ['http://checkout.stripe.com/x', 'https://evil.example/stripe.com', 'javascript:alert(1)']) {
@@ -72,38 +93,69 @@ void main() {
   });
 
   group('DemoPaymentRepository', () {
-    test('confirms a pending appointment and has no page to open', () async {
-      final db = DemoDatabase(latency: Duration.zero);
-      final pending = Appointment(
-        id: 'c1',
-        patientId: 'u1',
-        service: db.services.first,
-        slot: db.slotAt(DateTime.now(), 9, 0),
-        status: AppointmentStatus.pendingPayment,
-        bookedAt: DateTime.now().toUtc(),
-      );
-      db.appointments.add(pending);
+    late DemoDatabase db;
+    late DemoPaymentRepository repo;
 
-      expect(await DemoPaymentRepository(db).startCheckout(patientId: 'u1', appointmentId: 'c1'), isNull);
-      expect(db.appointments.firstWhere((a) => a.id == 'c1').status, AppointmentStatus.confirmed);
-    });
-
-    test('refuses an appointment that is not pending or not the patient\'s', () async {
-      final db = DemoDatabase(latency: Duration.zero);
+    setUp(() {
+      db = DemoDatabase(latency: Duration.zero);
+      repo = DemoPaymentRepository(db);
       db.appointments.add(
         Appointment(
           id: 'c1',
           patientId: 'u1',
           service: db.services.first,
           slot: db.slotAt(DateTime.now(), 9, 0),
-          status: AppointmentStatus.confirmed,
+          status: AppointmentStatus.pendingPayment,
           bookedAt: DateTime.now().toUtc(),
         ),
       );
-      final repo = DemoPaymentRepository(db);
+    });
+
+    AppointmentStatus status() => db.appointments.firstWhere((a) => a.id == 'c1').status;
+
+    Future<void> pay(PaymentSource source) => repo.payWithCard(patientId: 'u1', appointmentId: 'c1', source: source);
+
+    test('opens an embedded form and confirms only once a payment goes through, like the webhook', () async {
+      expect(await repo.startCheckout(patientId: 'u1', appointmentId: 'c1'), isA<Embedded>());
+      expect(status(), AppointmentStatus.pendingPayment);
+
+      await pay(const NewCardSource('pm_card_visa'));
+
+      expect(status(), AppointmentStatus.confirmed);
+    });
+
+    test("declines like Stripe's test cards and leaves the appointment pending", () async {
+      for (final id in ['pm_card_chargeDeclined', 'pm_card_chargeDeclinedInsufficientFunds', 'pm_card_threeDSecure2Required']) {
+        await expectLater(pay(NewCardSource(id)), throwsA(isA<AppError>().having((e) => e.status, 'status', 400)), reason: id);
+      }
+      expect(status(), AppointmentStatus.pendingPayment);
+    });
+
+    test('saves the card only when the patient asked, and a new one replaces the old', () async {
+      await pay(const NewCardSource('pm_card_visa'));
+      expect(db.savedCardOf('u1')!.expMonth, 9, reason: 'not asked to save: the card on file is untouched');
+
+      final index = db.appointments.indexWhere((a) => a.id == 'c1');
+      db.appointments[index] = db.appointments[index].copyWith(status: AppointmentStatus.pendingPayment);
+      await pay(const NewCardSource('pm_card_visa', save: true));
+
+      expect(db.savedCardOf('u1')!.expMonth, 12);
+    });
+
+    test('paying with the saved card needs one on file', () async {
+      db.setSavedCard('u1', null);
 
       await expectLater(
-        repo.startCheckout(patientId: 'u1', appointmentId: 'c1'),
+        pay(const SavedCardSource()),
+        throwsA(isA<AppError>().having((e) => e.message, 'message', contains('No tienes una tarjeta guardada'))),
+      );
+    });
+
+    test("refuses an appointment that is not pending or not the patient's", () async {
+      await pay(const NewCardSource('pm_card_visa'));
+
+      await expectLater(
+        pay(const NewCardSource('pm_card_visa')),
         throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.conflict)),
       );
       await expectLater(

@@ -4,6 +4,7 @@ import 'package:medicalbooking_portal/features/booking/domain/entities/appointme
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 
 /// In-memory stand-in for the REST API, shaped like the backend schema.
 /// Repositories in each feature's data layer read and write through it.
@@ -25,6 +26,15 @@ class DemoDatabase {
 
   /// Simulated network round trip.
   final Duration latency;
+
+  final Map<String, SavedCard?> _savedCards = {};
+
+  /// Every demo patient starts with a card on file; saving, replacing or removing it lasts for the session.
+  SavedCard? savedCardOf(String patientId) => _savedCards.containsKey(patientId)
+      ? _savedCards[patientId]
+      : const SavedCard(id: 'pm_demo', brand: 'VISA', last4: '4242', expMonth: 9, expYear: 2028);
+
+  void setSavedCard(String patientId, SavedCard? card) => _savedCards[patientId] = card;
 
   final branches = const [
     Branch(id: 'branch-central', name: 'Laboratorio Central', address: 'Av. Principal 123 y Calle 5, Quito'),

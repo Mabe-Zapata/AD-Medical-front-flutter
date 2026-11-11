@@ -1,4 +1,3 @@
-import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/repositories/lab_results_repository.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
@@ -12,16 +11,5 @@ class DemoLabResultsRepository implements LabResultsRepository {
   Future<List<LabOrder>> ordersOf(String patientId) async {
     await _db.simulateLatency();
     return _db.orders.where((o) => o.patientId == patientId).toList();
-  }
-
-  @override
-  Future<LabOrder> findOrder({required String patientId, required String code}) async {
-    await _db.simulateLatency();
-    final wanted = code.trim().toUpperCase();
-    // Like the real API: another patient's order looks the same as a missing one.
-    for (final order in _db.orders) {
-      if (order.id == wanted && order.patientId == patientId) return order;
-    }
-    throw const AppError(ErrorKind.forbidden, 'order not found or not yours');
   }
 }

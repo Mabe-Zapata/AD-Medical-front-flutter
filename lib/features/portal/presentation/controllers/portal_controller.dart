@@ -6,9 +6,10 @@ import 'package:medicalbooking_portal/features/booking/domain/usecases/cancel_ap
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_my_appointments.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_my_lab_orders.dart';
-import 'package:medicalbooking_portal/features/lab_results/domain/usecases/lookup_lab_order.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_checkout.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 
@@ -18,9 +19,9 @@ class PortalController extends ChangeNotifier {
     required this._getMyAppointments,
     required this._getMyLabOrders,
     required this._cancelAppointment,
-    required this._lookupLabOrder,
     required this._startCheckout,
     required this._getSavedCard,
+    required this._removeSavedCard,
     required this._session,
   });
 
@@ -31,13 +32,6 @@ class PortalController extends ChangeNotifier {
     ErrorKind.unavailable: 'El pago en línea no está disponible por ahora. Inténtalo más tarde o contacta al laboratorio.',
   };
 
-  /// The same wording for "not yours" and "does not exist", as the API does.
-  static const _lookupOverrides = {
-    ErrorKind.forbidden: 'No encontramos una orden con ese código en tu cuenta.',
-    ErrorKind.notFound: 'No encontramos una orden con ese código en tu cuenta.',
-    ErrorKind.validation: 'El código de orden no es válido. Revísalo e inténtalo de nuevo.',
-  };
-
   static const _cancelOverrides = {
     ErrorKind.forbidden: 'No se pudo cancelar esta cita.',
     ErrorKind.conflict: 'Esta cita ya no se puede cancelar.',
@@ -46,9 +40,9 @@ class PortalController extends ChangeNotifier {
   final GetMyAppointments _getMyAppointments;
   final GetMyLabOrders _getMyLabOrders;
   final CancelAppointment _cancelAppointment;
-  final LookupLabOrder _lookupLabOrder;
   final StartCheckout _startCheckout;
   final GetSavedCard _getSavedCard;
+  final RemoveSavedCard _removeSavedCard;
   final SessionController _session;
 
   List<Appointment> _appointments = const [];
@@ -67,7 +61,7 @@ class PortalController extends ChangeNotifier {
   SavedCard? get card => _card;
   bool get loading => _loading;
 
-  /// A cancellation or a lookup is in flight.
+  /// A cancellation, a payment or a card removal is in flight.
   bool get working => _working;
   ErrorView? get error => _error;
   String? get notice => _notice;
@@ -103,25 +97,28 @@ class PortalController extends ChangeNotifier {
     }, overrides: _cancelOverrides);
   }
 
-  /// Returns the hosted payment page to open, or null when there is none (demo, or the request failed).
-  Future<Uri?> pay(Appointment appointment) async {
+  /// Opens a checkout. Returns where the patient pays, or null when the request failed (the error is shown).
+  Future<CheckoutStart?> pay(Appointment appointment) async {
     final patient = _session.patient;
     if (patient == null) return null;
-    Uri? page;
+    CheckoutStart? start;
     await _run(() async {
-      page = await _startCheckout(patientId: patient.id, appointment: appointment);
-      if (page == null) _notice = 'Pago registrado. Tu cita ${appointment.id} quedó confirmada.';
+      start = await _startCheckout(patientId: patient.id, appointment: appointment);
     }, overrides: _payOverrides);
-    return page;
+    return start;
   }
 
-  Future<void> lookupOrder(String code) async {
+  /// The patient submitted the payment form. The reload brings back the card if it was saved.
+  Future<void> paymentSent(Appointment appointment) =>
+      _run(() async => _notice = 'Pago enviado. Tu cita ${appointment.id} se confirmará en cuanto el banco avise.');
+
+  Future<void> removeCard() async {
     final patient = _session.patient;
     if (patient == null) return;
     await _run(() async {
-      final order = await _lookupLabOrder(patientId: patient.id, code: code);
-      _notice = 'Orden ${order.id} encontrada.';
-    }, overrides: _lookupOverrides);
+      await _removeSavedCard(patient.id);
+      _notice = 'Quitamos tu tarjeta guardada.';
+    });
   }
 
   Future<void> _run(Future<void> Function() action, {Map<ErrorKind, String> overrides = const {}}) async {

@@ -8,7 +8,13 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 /// Presentational: the "Pagos" area of the portal. Shows the default card, or says honestly that there is
 /// none (the backend cannot keep cards yet).
 class PaymentMethodsSection extends StatelessWidget {
-  const PaymentMethodsSection({super.key, required this.card, required this.holderName, required this.demo});
+  const PaymentMethodsSection({
+    super.key,
+    required this.card,
+    required this.holderName,
+    required this.demo,
+    this.onRemove,
+  });
 
   final SavedCard? card;
   final String holderName;
@@ -16,7 +22,8 @@ class PaymentMethodsSection extends StatelessWidget {
   /// True when the card is made up for the demo, so the screen says so.
   final bool demo;
 
-  static const _soon = 'Disponible cuando el servidor permita guardar tarjetas.';
+  /// Asks to remove the saved card; null while another action is running.
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +50,8 @@ class PaymentMethodsSection extends StatelessWidget {
                   ],
                 ),
               ),
-              if (saved != null) const StatusChip('ACTIVA', Tokens.success),
+              if (saved != null)
+                saved.isExpired(DateTime.now()) ? const StatusChip('VENCIDA', Tokens.danger) : const StatusChip('ACTIVA', Tokens.success),
             ],
           ),
           const Divider(height: 32),
@@ -52,14 +60,14 @@ class PaymentMethodsSection extends StatelessWidget {
           else ...[
             Center(child: PaymentCardView(card: saved, holderName: holderName)),
             const SizedBox(height: 16),
-            const Row(
+            Row(
               children: [
-                Icon(Icons.check_circle_outline, size: 18, color: Tokens.success),
-                SizedBox(width: 8),
+                const Icon(Icons.check_circle_outline, size: 18, color: Tokens.success),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'PREDETERMINADA PARA COMPRAS RÁPIDAS',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Tokens.slate700),
+                    saved.isExpired(DateTime.now()) ? 'VENCIDA: PAGA CON OTRA TARJETA' : 'PREDETERMINADA PARA COMPRAS RÁPIDAS',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Tokens.slate700),
                   ),
                 ),
               ],
@@ -70,19 +78,17 @@ class PaymentMethodsSection extends StatelessWidget {
             ],
           ],
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              Tooltip(
-                message: _soon,
-                child: OutlinedButton.icon(onPressed: null, icon: Icon(Icons.add_card_outlined, size: 18), label: Text('Agregar tarjeta')),
-              ),
-              Tooltip(
-                message: _soon,
-                child: OutlinedButton.icon(onPressed: null, icon: Icon(Icons.settings_outlined, size: 18), label: Text('Gestionar')),
-              ),
-            ],
+          if (saved != null)
+            OutlinedButton.icon(
+              onPressed: onRemove,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Quitar tarjeta'),
+              style: OutlinedButton.styleFrom(foregroundColor: Tokens.danger, side: const BorderSide(color: Tokens.danger)),
+            ),
+          if (saved != null) const SizedBox(height: 8),
+          const Text(
+            'Puedes guardar una tarjeta al pagar una cita, con la casilla "Guardar esta tarjeta". Guardar una nueva reemplaza la anterior.',
+            style: TextStyle(fontSize: 12, color: Tokens.muted, height: 1.4),
           ),
           const SizedBox(height: 16),
           const Row(
@@ -110,7 +116,7 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.symmetric(vertical: 8),
     child: Text(
-      'Aún no tienes una tarjeta guardada. Por ahora pagas cada cita en la página segura de Stripe.',
+      'Aún no tienes una tarjeta guardada.',
       style: TextStyle(fontSize: 14, color: Tokens.slate600, height: 1.5),
     ),
   );

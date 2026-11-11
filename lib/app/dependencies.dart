@@ -25,7 +25,6 @@ import 'package:medicalbooking_portal/features/catalog/domain/usecases/get_catal
 import 'package:medicalbooking_portal/features/lab_results/data/repositories/demo_lab_results_repository.dart';
 import 'package:medicalbooking_portal/features/lab_results/data/repositories/http_lab_results_repository.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_my_lab_orders.dart';
-import 'package:medicalbooking_portal/features/lab_results/domain/usecases/lookup_lab_order.dart';
 import 'package:medicalbooking_portal/features/profile/data/repositories/demo_clinical_profile_repository.dart';
 import 'package:medicalbooking_portal/features/profile/data/repositories/http_clinical_profile_repository.dart';
 import 'package:medicalbooking_portal/features/profile/domain/usecases/save_clinical_profile.dart';
@@ -34,8 +33,11 @@ import 'package:medicalbooking_portal/features/payments/data/repositories/demo_p
 import 'package:medicalbooking_portal/features/payments/data/repositories/http_payment_repository.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/demo_saved_card_repository.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/http_saved_card_repository.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_checkout.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/widgets/mock_embedded_checkout.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
 /// Composition root: the only place that knows the concrete repositories.
@@ -56,10 +58,12 @@ class AppDependencies {
     required this.getMyAppointments,
     required this.cancelAppointment,
     required this.getMyLabOrders,
-    required this.lookupLabOrder,
     required this.startCheckout,
     required this.getSavedCard,
     required this.openPage,
+    required this.embeddedCheckout,
+    required this.removeSavedCard,
+    this.payWithCard,
     this.demoCredentials,
   });
 
@@ -69,6 +73,8 @@ class AppDependencies {
     final auth = DemoAuthRepository(db);
     final appointments = DemoAppointmentRepository(db);
     final labs = DemoLabResultsRepository(db);
+    final payments = DemoPaymentRepository(db);
+    final savedCards = DemoSavedCardRepository(db);
     return AppDependencies._(
       isDemo: true,
       session: _session(auth, store),
@@ -80,10 +86,12 @@ class AppDependencies {
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
-      lookupLabOrder: LookupLabOrder(labs),
-      startCheckout: StartCheckout(DemoPaymentRepository(db)),
-      getSavedCard: GetSavedCard(DemoSavedCardRepository(db)),
+      startCheckout: StartCheckout(payments),
+      getSavedCard: GetSavedCard(savedCards),
+      removeSavedCard: RemoveSavedCard(savedCards),
       openPage: (_) {},
+      embeddedCheckout: mockEmbeddedCheckout,
+      payWithCard: payments.payWithCard,
       demoCredentials: (email: DemoDatabase.demoEmail, password: DemoDatabase.demoPassword),
     );
   }
@@ -98,6 +106,7 @@ class AppDependencies {
     SessionStore? store,
     DateTime Function() now = DateTime.now,
     void Function(Uri)? openPage,
+    EmbeddedCheckoutBuilder? embeddedCheckout,
   }) {
     late final SessionController session;
     final api = ApiClient(
@@ -110,6 +119,7 @@ class AppDependencies {
     session = _session(auth, store ?? createSessionStore(), now: now);
     final appointments = HttpAppointmentRepository(api, now: now);
     final labs = HttpLabResultsRepository(api);
+    final savedCards = HttpSavedCardRepository(api);
     final content = DemoDatabase(latency: Duration.zero);
     return AppDependencies._(
       isDemo: false,
@@ -130,10 +140,12 @@ class AppDependencies {
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
-      lookupLabOrder: LookupLabOrder(labs),
       startCheckout: StartCheckout(HttpPaymentRepository(api)),
-      getSavedCard: const GetSavedCard(HttpSavedCardRepository()),
+      getSavedCard: GetSavedCard(savedCards),
+      removeSavedCard: RemoveSavedCard(savedCards),
       openPage: openPage ?? openExternalPage,
+      // The real form (Stripe.js) goes here. Until then the portal says so instead of pretending to charge.
+      embeddedCheckout: embeddedCheckout ?? unavailableEmbeddedCheckout,
     );
   }
 
@@ -164,12 +176,25 @@ class AppDependencies {
   final GetMyAppointments getMyAppointments;
   final CancelAppointment cancelAppointment;
   final GetMyLabOrders getMyLabOrders;
-  final LookupLabOrder lookupLabOrder;
   final StartCheckout startCheckout;
   final GetSavedCard getSavedCard;
 
   /// Sends the browser to another page (the hosted payment page); a test replaces it.
   final void Function(Uri) openPage;
+
+  /// Draws the embedded payment form.
+  final EmbeddedCheckoutBuilder embeddedCheckout;
+
+  final RemoveSavedCard removeSavedCard;
+
+  /// Demo only: plays the backend's part when the simulated card form is submitted. The real form will send
+  /// the payment itself.
+  final Future<void> Function({
+    required String patientId,
+    required String appointmentId,
+    required PaymentSource source,
+  })?
+  payWithCard;
 
   /// Stops what the dependencies keep running (the session expiry timer).
   void dispose() {

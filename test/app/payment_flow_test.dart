@@ -40,7 +40,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('demo: paying a pending appointment confirms it', (tester) async {
+  Future<void> bookInDemo(WidgetTester tester) async {
     await useScreen(tester);
     await tester.pumpWidget(MedicalBookingApp(dependencies: AppDependencies.demo(latency: Duration.zero)));
     await tester.pumpAndSettle();
@@ -54,17 +54,81 @@ void main() {
     await tapText(tester, find.text('Continuar'));
     await tapText(tester, find.text('Confirmar reserva'));
     expect(find.text('Pago pendiente'), findsOneWidget);
-
     await tapText(tester, find.text('Pagar ahora'));
+    // The card form is drawn inside a Medilo modal, not on another page.
+    expect(find.text('Pagar cita'), findsOneWidget);
+  }
+
+  Future<void> submitPayment(WidgetTester tester) async {
+    await tapText(tester, find.textContaining('Pagar \$'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> chooseTestCard(WidgetTester tester, String name) async {
+    await tapText(tester, find.byType(DropdownButtonFormField<int>));
+    await tapText(tester, find.text(name).last);
+  }
+
+  testWidgets('demo: the saved card is preselected and paying with it confirms the appointment', (tester) async {
+    await bookInDemo(tester);
+
+    expect(find.textContaining('Pagar con VISA •••• 4242 · vence 09/28'), findsOneWidget);
+    expect(find.text('Usar otra tarjeta'), findsOneWidget);
+    expect(find.textContaining('Simulación'), findsOneWidget);
+
+    await submitPayment(tester);
+    expect(find.text('Pago enviado'), findsOneWidget);
+    await tapText(tester, find.text('Volver a mi portal'));
 
     expect(find.text('Pago pendiente'), findsNothing);
     expect(find.text('Pagar ahora'), findsNothing);
-    expect(find.textContaining('quedó confirmada'), findsOneWidget);
+    expect(find.textContaining('Pago enviado. Tu cita'), findsOneWidget);
+  });
+
+  testWidgets('demo: a declined card is explained in Spanish and the form keeps what the patient chose', (tester) async {
+    await bookInDemo(tester);
+    await tapText(tester, find.text('Usar otra tarjeta'));
+    await chooseTestCard(tester, 'Fondos insuficientes');
+
+    await submitPayment(tester);
+
+    expect(find.textContaining('Tu pago fue rechazado: la tarjeta no tiene fondos suficientes'), findsOneWidget);
+    expect(find.textContaining('Payment declined'), findsNothing);
+    expect(find.text('Pago enviado'), findsNothing);
+    // Nothing was cleared: the chosen test card is still selected.
+    expect(find.text('Fondos insuficientes'), findsWidgets);
+  });
+
+  testWidgets('demo: a card from the 3D Secure test is refused with its own message', (tester) async {
+    await bookInDemo(tester);
+    await tapText(tester, find.text('Usar otra tarjeta'));
+    await chooseTestCard(tester, 'Exige 3D Secure');
+
+    await submitPayment(tester);
+
+    expect(find.textContaining('autenticación adicional (3D Secure)'), findsOneWidget);
+  });
+
+  testWidgets('demo: the save box is off by default, and ticking it replaces the card on file', (tester) async {
+    await bookInDemo(tester);
+    await tapText(tester, find.text('Usar otra tarjeta'));
+    expect(tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value, isFalse);
+    expect(find.textContaining('autorizas guardar tu tarjeta de forma segura con Stripe'), findsOneWidget);
+
+    await tapText(tester, find.byType(CheckboxListTile));
+    await submitPayment(tester);
+    await tapText(tester, find.text('Volver a mi portal'));
+    await tapText(tester, find.text('Pagos'));
+
+    expect(find.textContaining('4242'), findsOneWidget);
+    expect(find.textContaining('12/${(DateTime.now().year + 2) % 100}'), findsOneWidget);
   });
 
   group('API mode', () {
     late List<String> calls;
     late int checkoutStatus;
+    var embedded = false;
     Uri? opened;
 
     Future<void> bookAndOpenPortal(WidgetTester tester) async {
@@ -90,10 +154,23 @@ void main() {
               ],
             }, 200);
           case '/api/v1/appointments':
+            if (request.method == 'GET') {
+              final start = DateTime.now().toUtc().add(const Duration(days: 1));
+              return _json({
+                'items': [
+                  {'id': 'cita-1', 'estado': 'PENDIENTE_PAGO', 'inicio': start.toIso8601String(), 'fin': start.add(const Duration(minutes: 20)).toIso8601String()},
+                ],
+              }, 200);
+            }
             return _json({'id': 'cita-1', 'estado': 'PENDIENTE_PAGO'}, 201);
+          case '/api/v1/lab/orders':
+            return _json({'items': []}, 200);
+          case '/api/v1/me/payment-methods':
+            return _json({'items': []}, 200);
           case '/api/v1/invoices':
             return _json({'id': 'inv-1', 'estado': 'PENDIENTE', 'total': '8.00', 'moneda': 'USD'}, 201);
           case '/api/v1/payments/checkout':
+            if (embedded) return _json({'pago_id': 'p-1', 'client_secret': 'cs_test_x_secret_y', 'publishable_key': 'pk_test_z'}, 201);
             return checkoutStatus == 201
                 ? _json({'pago_id': 'p-1', 'checkout_url': 'https://checkout.stripe.com/c/pay/cs_test_1'}, 201)
                 : _json({'detail': 'Payment provider is not configured', 'correlation_id': 'c-9'}, checkoutStatus);
@@ -124,6 +201,22 @@ void main() {
       await tapText(tester, find.text('Continuar'));
       await tapText(tester, find.text('Confirmar reserva'));
     }
+
+    testWidgets('an embedded answer opens the form in a modal and does not leave the portal', (tester) async {
+      await useScreen(tester);
+      checkoutStatus = 201;
+      embedded = true;
+      addTearDown(() => embedded = false);
+      await bookAndOpenPortal(tester);
+
+      await tapText(tester, find.text('Pagar ahora'));
+
+      expect(find.text('Pagar cita'), findsOneWidget);
+      expect(opened, isNull);
+      // Stripe's own form is not mounted yet: the portal says so and offers no payment button.
+      expect(find.textContaining('todavía no está integrado'), findsOneWidget);
+      expect(find.textContaining('Pagar \$'), findsNothing);
+    });
 
     testWidgets('paying invoices the appointment and sends the patient to the Stripe page', (tester) async {
       await useScreen(tester);

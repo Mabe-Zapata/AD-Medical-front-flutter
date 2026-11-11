@@ -12,7 +12,7 @@ class PaymentCardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expiry = '${card.expMonth.toString().padLeft(2, '0')}/${(card.expYear % 100).toString().padLeft(2, '0')}';
+    final expiry = card.expiry;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 380),
       child: AspectRatio(

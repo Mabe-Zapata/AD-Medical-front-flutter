@@ -84,8 +84,41 @@ void main() {
     expect(appointment.reservationExpiresAt, DateTime.utc(2026, 11, 3, 12, 15));
     expect(jsonDecode(seen.body), {'horario_id': _slotId, 'servicio_id': _serviceId, 'motivo': 'chequeo'});
     expect(seen.headers['Idempotency-Key'], isNotEmpty);
-    expect((await repo.appointmentsOf('u1')).single.id, 'apt-1');
-    expect(await repo.appointmentsOf('someone-else'), isEmpty);
+  });
+
+  test('lists the appointments from the API, and keeps what this run knows about the ones it reserved', () async {
+    late Uri listed;
+    final repo = _repo(
+      MockClient((request) async {
+        if (request.method == 'GET') {
+          listed = request.url;
+          return _json({
+            'items': [
+              {'id': 'apt-1', 'estado': 'CONFIRMADA', 'inicio': '2026-11-04T14:00:00Z', 'fin': '2026-11-04T14:20:00Z'},
+              {'id': 'apt-old', 'estado': 'COMPLETADA', 'inicio': '2026-10-01T15:00:00Z', 'fin': '2026-10-01T15:30:00Z'},
+            ],
+          }, 200);
+        }
+        return _json({'id': 'apt-1', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId, 'motivo': 'chequeo'}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot, reason: 'chequeo');
+
+    final appointments = await repo.appointmentsOf('u1');
+
+    expect(listed.path, '/api/v1/appointments');
+    // The state comes from the API, the details from what this run remembers.
+    final mine = appointments.firstWhere((a) => a.id == 'apt-1');
+    expect(mine.status, AppointmentStatus.confirmed);
+    expect(mine.service.name, 'Toma de sangre');
+    expect(mine.reason, 'chequeo');
+    // An appointment of an earlier visit is shown with no invented service or price.
+    final old = appointments.firstWhere((a) => a.id == 'apt-old');
+    expect(old.status, AppointmentStatus.completed);
+    expect(old.service.name, 'Cita de laboratorio');
+    expect(old.service.basePrice, 0);
+    expect(old.service.durationMin, 30);
+    expect(old.slot.startUtc, DateTime.utc(2026, 10, 1, 15));
   });
 
   test('omits the reason when there is none', () async {
@@ -126,7 +159,7 @@ void main() {
     expect(requests, 1);
   });
 
-  test('cancels a known appointment and reports it as cancelled', () async {
+  test('cancels an appointment and reports it as cancelled, even one this run did not reserve', () async {
     final repo = _repo(
       MockClient((request) async {
         if (request.url.path.endsWith('/cancel')) return _json({'id': 'apt-1', 'estado': 'CANCELADA'}, 200);
@@ -136,9 +169,11 @@ void main() {
     await repo.reserve(patientId: 'u1', service: _service, slot: _slot);
 
     final cancelled = await repo.cancel(patientId: 'u1', appointmentId: 'apt-1');
+    final other = await repo.cancel(patientId: 'u1', appointmentId: 'apt-from-before');
 
     expect(cancelled.status, AppointmentStatus.cancelled);
-    expect((await repo.appointmentsOf('u1')).single.holdsSlot, isFalse);
+    expect(cancelled.holdsSlot, isFalse);
+    expect(other.status, AppointmentStatus.cancelled);
   });
 
   test('cancelling someone else\'s appointment surfaces the API refusal', () async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/auth_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/session_expired_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/pages/landing_page.dart';
@@ -39,6 +40,7 @@ class AppRouter {
       Routes.register => _modal(settings, AuthDialog(next: argument, mode: AuthMode.register)),
       Routes.verify => _modal(settings, VerifyEmailDialog(token: uri.queryParameters['token'])),
       Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
+      Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
       Routes.profile => _modal(settings, const ProfileDialog()),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
       Routes.paymentDone => _modal(settings, const PaymentResultDialog(completed: true)),
