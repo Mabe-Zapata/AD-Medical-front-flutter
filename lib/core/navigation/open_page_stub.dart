@@ -1,0 +1,1 @@
+void openExternalPage(Uri uri) {}

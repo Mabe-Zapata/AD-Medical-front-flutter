@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:medicalbooking_portal/core/http/api_client.dart';
+import 'package:medicalbooking_portal/core/navigation/open_page.dart';
 import 'package:medicalbooking_portal/features/auth/data/repositories/demo_auth_repository.dart';
 import 'package:medicalbooking_portal/features/auth/data/repositories/http_auth_repository.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart' as memory;
@@ -29,6 +30,12 @@ import 'package:medicalbooking_portal/features/profile/data/repositories/demo_cl
 import 'package:medicalbooking_portal/features/profile/data/repositories/http_clinical_profile_repository.dart';
 import 'package:medicalbooking_portal/features/profile/domain/usecases/save_clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/controllers/clinical_profile_controller.dart';
+import 'package:medicalbooking_portal/features/payments/data/repositories/demo_payment_repository.dart';
+import 'package:medicalbooking_portal/features/payments/data/repositories/http_payment_repository.dart';
+import 'package:medicalbooking_portal/features/payments/data/repositories/demo_saved_card_repository.dart';
+import 'package:medicalbooking_portal/features/payments/data/repositories/http_saved_card_repository.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/start_checkout.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
 /// Composition root: the only place that knows the concrete repositories.
@@ -50,6 +57,9 @@ class AppDependencies {
     required this.cancelAppointment,
     required this.getMyLabOrders,
     required this.lookupLabOrder,
+    required this.startCheckout,
+    required this.getSavedCard,
+    required this.openPage,
     this.demoCredentials,
   });
 
@@ -71,6 +81,9 @@ class AppDependencies {
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
       lookupLabOrder: LookupLabOrder(labs),
+      startCheckout: StartCheckout(DemoPaymentRepository(db)),
+      getSavedCard: GetSavedCard(DemoSavedCardRepository(db)),
+      openPage: (_) {},
       demoCredentials: (email: DemoDatabase.demoEmail, password: DemoDatabase.demoPassword),
     );
   }
@@ -84,6 +97,7 @@ class AppDependencies {
     http.Client? client,
     SessionStore? store,
     DateTime Function() now = DateTime.now,
+    void Function(Uri)? openPage,
   }) {
     late final SessionController session;
     final api = ApiClient(
@@ -117,6 +131,9 @@ class AppDependencies {
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
       lookupLabOrder: LookupLabOrder(labs),
+      startCheckout: StartCheckout(HttpPaymentRepository(api)),
+      getSavedCard: const GetSavedCard(HttpSavedCardRepository()),
+      openPage: openPage ?? openExternalPage,
     );
   }
 
@@ -148,6 +165,11 @@ class AppDependencies {
   final CancelAppointment cancelAppointment;
   final GetMyLabOrders getMyLabOrders;
   final LookupLabOrder lookupLabOrder;
+  final StartCheckout startCheckout;
+  final GetSavedCard getSavedCard;
+
+  /// Sends the browser to another page (the hosted payment page); a test replaces it.
+  final void Function(Uri) openPage;
 
   /// Stops what the dependencies keep running (the session expiry timer).
   void dispose() {

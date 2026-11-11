@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/widgets/payment_methods_section.dart';
 import 'package:medicalbooking_portal/app/app_scope.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
@@ -41,6 +42,8 @@ class _PortalPageState extends State<PortalPage> {
       getMyLabOrders: deps.getMyLabOrders,
       cancelAppointment: deps.cancelAppointment,
       lookupLabOrder: deps.lookupLabOrder,
+      startCheckout: deps.startCheckout,
+      getSavedCard: deps.getSavedCard,
       session: deps.session,
     )..load();
 
@@ -62,6 +65,12 @@ class _PortalPageState extends State<PortalPage> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _pay(Appointment appointment) async {
+    final deps = AppScope.of(context);
+    final page = await _controller.pay(appointment);
+    if (page != null) deps.openPage(page);
   }
 
   Future<void> _confirmCancel(Appointment appointment) async {
@@ -130,6 +139,7 @@ class _PortalPageState extends State<PortalPage> {
                           segments: [
                             ButtonSegment(value: 0, label: Text('Citas (${_controller.appointments.length})')),
                             ButtonSegment(value: 1, label: Text('Resultados de laboratorio (${_controller.orders.length})')),
+                            const ButtonSegment(value: 2, label: Text('Pagos')),
                           ],
                           selected: {_tab},
                           onSelectionChanged: (selection) => setState(() => _tab = selection.first),
@@ -156,6 +166,12 @@ class _PortalPageState extends State<PortalPage> {
                           )
                         else if (_tab == 0)
                           ..._appointments(isDemo: deps.isDemo)
+                        else if (_tab == 2)
+                          PaymentMethodsSection(
+                            card: _controller.card,
+                            holderName: patient.displayName,
+                            demo: deps.isDemo,
+                          )
                         else
                           ..._results(patient.displayName, isDemo: deps.isDemo),
                       ],
@@ -186,6 +202,7 @@ class _PortalPageState extends State<PortalPage> {
       for (final appointment in items) ...[
         AppointmentCard(
           appointment,
+          onPay: _controller.working ? null : () => _pay(appointment),
           onCancel: _controller.working ? null : () => _confirmCancel(appointment),
         ),
         const SizedBox(height: 14),
