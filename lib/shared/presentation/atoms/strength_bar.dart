@@ -23,7 +23,7 @@ class StrengthBar extends StatelessWidget {
                   height: 4,
                   margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                   decoration: BoxDecoration(
-                    color: i < level ? color : Tokens.slate200,
+                    color: i < level ? color : Tokens.blueSoft,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
