@@ -16,9 +16,12 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 };
 
 class AppointmentCard extends StatelessWidget {
-  const AppointmentCard(this.appointment, {super.key, this.onCancel});
+  const AppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay});
 
   final Appointment appointment;
+
+  /// Shown only while the appointment waits for payment.
+  final VoidCallback? onPay;
 
   /// Shown only while the appointment still holds its slot.
   final VoidCallback? onCancel;
@@ -63,6 +66,14 @@ class AppointmentCard extends StatelessWidget {
                       StatusChip('Retenida hasta las ${timeLabel(branchTime(expires))}', Tokens.warning),
                   ],
                 ),
+                if (onPay != null && a.status == AppointmentStatus.pendingPayment) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: onPay,
+                    icon: const Icon(Icons.lock_outline, size: 18),
+                    label: const Text('Pagar ahora'),
+                  ),
+                ],
                 if (onCancel != null && a.holdsSlot) ...[
                   const SizedBox(height: 12),
                   OutlinedButton(

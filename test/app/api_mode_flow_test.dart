@@ -36,6 +36,12 @@ void main() {
       switch (request.url.path) {
         case '/api/v1/auth/login':
           return _json({'access_token': 'jwt', 'token_type': 'Bearer', 'expires_in': 900}, 200);
+        case '/api/v1/appointments':
+          return _json({'items': []}, 200);
+        case '/api/v1/lab/orders':
+          return _json({'items': []}, 200);
+        case '/api/v1/me/payment-methods':
+          return _json({'items': []}, 200);
         case '/api/v1/me':
           return _json({'id': 'u1', 'roles': ['PACIENTE'], 'permissions': ['citas.reservar']}, 200);
         case '/api/v1/availability':
@@ -78,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bienvenido'), findsOneWidget);
-    expect(find.textContaining('Aquí aparecen las citas que reservaste'), findsOneWidget);
+    expect(find.text('Aún no tienes citas.'), findsOneWidget);
 
     await tester.tap(find.text('Nueva cita'));
     await tester.pumpAndSettle();
@@ -89,8 +95,13 @@ void main() {
     await tester.tap(find.byType(ChoiceChip).at(2));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Tu sesión expiró'), findsOneWidget);
-    expect(find.text('Iniciar sesión'), findsWidgets);
+    // The patient lands on the home page with a modal that explains what happened.
+    expect(find.text('Tu sesión se cerró'), findsOneWidget);
+    expect(find.text('Reservar una cita'), findsNothing);
+
+    await tester.tap(find.text('Iniciar sesión'));
+    await tester.pumpAndSettle();
+    expect(find.text('Correo electrónico'), findsWidgets);
   });
   testWidgets('API mode: the sign-up sends only the fields the backend accepts and asks to check the email', (
     tester,

@@ -11,8 +11,8 @@ import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.d
 
 /// Talks to /api/v1/availability and /api/v1/appointments.
 ///
-/// The API cannot list a patient's appointments, so the ones created in this app run are
-/// remembered here (keyed by patient, so two people on one browser never mix).
+/// The listing only carries the id, the state and the slot times: it has no service, price or reason.
+/// The appointments created in this app run are remembered so they keep those details.
 class HttpAppointmentRepository implements AppointmentRepository {
   HttpAppointmentRepository(this._api, {this._now = DateTime.now});
 
@@ -62,17 +62,57 @@ class HttpAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<List<Appointment>> appointmentsOf(String patientId) async =>
-      _mine.where((a) => a.patientId == patientId).toList();
+  Future<List<Appointment>> appointmentsOf(String patientId) async {
+    final json = await _api.get('/appointments') as Map<String, dynamic>;
+    return [for (final item in json['items'] as List) _listed(item as Map<String, dynamic>, patientId)];
+  }
 
   @override
   Future<Appointment> cancel({required String patientId, required String appointmentId}) async {
     final json = await _api.post('/appointments/$appointmentId/cancel') as Map<String, dynamic>?;
-    final index = _mine.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
-    if (index < 0) throw const AppError(ErrorKind.notFound, 'appointment is not known by this session');
     final status = json?['estado'] is String ? _status(json!['estado'] as String) : AppointmentStatus.cancelled;
-    return _mine[index] = _mine[index].copyWith(status: status);
+    final index = _mine.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
+    if (index >= 0) return _mine[index] = _mine[index].copyWith(status: status);
+    final now = _now().toUtc();
+    return _placeholder(appointmentId, patientId, now, now, status);
   }
+
+  /// An appointment of the listing: what the API says, plus what this app run remembers about it.
+  Appointment _listed(Map<String, dynamic> json, String patientId) {
+    final id = json['id'] as String;
+    final start = DateTime.parse(json['inicio'] as String).toUtc();
+    final end = DateTime.parse(json['fin'] as String).toUtc();
+    final status = _status(json['estado'] as String);
+    final known = _mine.where((a) => a.id == id && a.patientId == patientId).firstOrNull;
+    if (known == null) return _placeholder(id, patientId, start, end, status);
+    return Appointment(
+      id: id,
+      patientId: patientId,
+      service: known.service,
+      slot: known.slot,
+      status: status,
+      reason: known.reason,
+      bookedAt: known.bookedAt,
+      reservationExpiresAt: known.reservationExpiresAt,
+    );
+  }
+
+  /// The listing does not say which service it was, so it is shown as a generic laboratory appointment with
+  /// no price (a price of zero means "unknown").
+  Appointment _placeholder(String id, String patientId, DateTime start, DateTime end, AppointmentStatus status) =>
+      Appointment(
+        id: id,
+        patientId: patientId,
+        service: MedicalService(
+          id: '',
+          name: 'Cita de laboratorio',
+          durationMin: end.difference(start).inMinutes,
+          basePrice: 0,
+        ),
+        slot: TimeSlot(id: id, startUtc: start, endUtc: end, status: SlotStatus.reserved, doctorId: ''),
+        status: status,
+        bookedAt: start,
+      );
 
   TimeSlot _slot(Map<String, dynamic> json) => TimeSlot(
     id: json['horario_id'] as String,

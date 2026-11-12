@@ -52,13 +52,14 @@ class _MedicalBookingAppState extends State<MedicalBookingApp> {
     super.dispose();
   }
 
-  /// Any way a session ends on its own (token expiry, a 401 from the API) lands on the login page.
+  /// Any way a session ends on its own (token expiry, a 401 from the API) lands on the home page with a
+  /// modal that explains it.
   void _onSessionChanged() {
     final session = widget.dependencies.session;
     final signedIn = session.patient != null;
     if (_wasSignedIn && !signedIn && session.endReason == EndReason.expired) {
-      // Keep the first page (the landing) behind the sign-in modal.
-      _navigatorKey.currentState?.pushNamedAndRemoveUntil('${Routes.login}?motivo=expirada', (route) => route.isFirst);
+      // Back to the first page (the landing), with the explanation on top.
+      _navigatorKey.currentState?.pushNamedAndRemoveUntil(Routes.sessionExpired, (route) => route.isFirst);
     }
     _wasSignedIn = signedIn;
   }

@@ -114,6 +114,12 @@ void main() {
       switch (request.url.path) {
         case '/api/v1/auth/login':
           return _json({'access_token': 'jwt', 'token_type': 'Bearer', 'expires_in': 900}, 200);
+        case '/api/v1/appointments':
+          return _json({'items': []}, 200);
+        case '/api/v1/lab/orders':
+          return _json({'items': []}, 200);
+        case '/api/v1/me/payment-methods':
+          return _json({'items': []}, 200);
         case '/api/v1/me':
           return _json({'id': 'u1', 'roles': ['PACIENTE'], 'permissions': ['citas.reservar']}, 200);
         case '/api/v1/me/perfil-clinico':

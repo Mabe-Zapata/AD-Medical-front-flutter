@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_dialog.dart';
+import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/widgets/payment_methods_section.dart';
 import 'package:medicalbooking_portal/app/app_scope.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
@@ -6,7 +10,6 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
-import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_lookup_form.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
@@ -40,7 +43,9 @@ class _PortalPageState extends State<PortalPage> {
       getMyAppointments: deps.getMyAppointments,
       getMyLabOrders: deps.getMyLabOrders,
       cancelAppointment: deps.cancelAppointment,
-      lookupLabOrder: deps.lookupLabOrder,
+      startCheckout: deps.startCheckout,
+      getSavedCard: deps.getSavedCard,
+      removeSavedCard: deps.removeSavedCard,
       session: deps.session,
     )..load();
 
@@ -62,6 +67,41 @@ class _PortalPageState extends State<PortalPage> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _pay(Appointment appointment) async {
+    final deps = AppScope.of(context);
+    final start = await _controller.pay(appointment);
+    if (!mounted) return;
+    switch (start) {
+      case RedirectTo(:final page):
+        deps.openPage(page);
+      case Embedded():
+        final sent = await Navigator.of(context).push<bool>(
+          modalRoute<bool>(
+            settings: const RouteSettings(name: Routes.pay),
+            builder: (_) => PaymentDialog(appointment: appointment, checkout: start),
+          ),
+        );
+        if (sent == true) await _controller.paymentSent(appointment);
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _confirmRemoveCard() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Quitar tu tarjeta guardada?'),
+        content: const Text('Tendrás que escribir la tarjeta de nuevo la próxima vez que pagues.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Volver')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Quitar tarjeta')),
+        ],
+      ),
+    );
+    if (confirmed == true) await _controller.removeCard();
   }
 
   Future<void> _confirmCancel(Appointment appointment) async {
@@ -130,6 +170,7 @@ class _PortalPageState extends State<PortalPage> {
                           segments: [
                             ButtonSegment(value: 0, label: Text('Citas (${_controller.appointments.length})')),
                             ButtonSegment(value: 1, label: Text('Resultados de laboratorio (${_controller.orders.length})')),
+                            const ButtonSegment(value: 2, label: Text('Pagos')),
                           ],
                           selected: {_tab},
                           onSelectionChanged: (selection) => setState(() => _tab = selection.first),
@@ -156,6 +197,13 @@ class _PortalPageState extends State<PortalPage> {
                           )
                         else if (_tab == 0)
                           ..._appointments(isDemo: deps.isDemo)
+                        else if (_tab == 2)
+                          PaymentMethodsSection(
+                            card: _controller.card,
+                            holderName: patient.displayName,
+                            demo: deps.isDemo,
+                            onRemove: _controller.working ? null : _confirmRemoveCard,
+                          )
                         else
                           ..._results(patient.displayName, isDemo: deps.isDemo),
                       ],
@@ -174,18 +222,11 @@ class _PortalPageState extends State<PortalPage> {
   List<Widget> _appointments({required bool isDemo}) {
     final items = _controller.appointments;
     return [
-      if (!isDemo) ...[
-        const InfoBanner(
-          message: 'Aquí aparecen las citas que reservaste desde este navegador. El servidor aún no ofrece el listado completo.',
-          color: Tokens.info,
-          icon: Icons.info_outline,
-        ),
-        const SizedBox(height: 16),
-      ],
       if (items.isEmpty) const _Empty('Aún no tienes citas.'),
       for (final appointment in items) ...[
         AppointmentCard(
           appointment,
+          onPay: _controller.working ? null : () => _pay(appointment),
           onCancel: _controller.working ? null : () => _confirmCancel(appointment),
         ),
         const SizedBox(height: 14),
@@ -202,12 +243,8 @@ class _PortalPageState extends State<PortalPage> {
         icon: Icons.lock_outline,
       ),
       const SizedBox(height: 16),
-      if (!isDemo) ...[
-        OrderLookupForm(busy: _controller.working, onSubmit: _controller.lookupOrder),
-        const SizedBox(height: 16),
-      ],
       if (orders.isEmpty)
-        _Empty(isDemo ? 'Aún no tienes órdenes de laboratorio.' : 'Consulta una orden con su código para ver sus resultados.'),
+        const _Empty('Aún no tienes órdenes de laboratorio.'),
       for (final order in orders) ...[
         OrderCard(
           order: order,

@@ -40,6 +40,8 @@ class ApiClient {
 
   Future<Object?> put(String path, {Object? body}) => _send('PUT', path, body: body);
 
+  Future<Object?> delete(String path) => _send('DELETE', path);
+
   Uri _uri(String path, Map<String, String>? query) {
     final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     final uri = Uri.parse('$base$path');
