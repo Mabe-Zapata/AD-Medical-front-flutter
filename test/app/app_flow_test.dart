@@ -12,14 +12,20 @@ void main() {
     // fit with the real font. Layout at phone width is checked in the browser instead.
     final original = FlutterError.onError;
     FlutterError.onError = (details) {
-      if (!details.exceptionAsString().contains('overflowed')) original?.call(details);
+      if (!details.exceptionAsString().contains('overflowed')) {
+        original?.call(details);
+      }
     };
     addTearDown(() => FlutterError.onError = original);
 
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MedicalBookingApp(dependencies: AppDependencies.demo(latency: Duration.zero)));
+    await tester.pumpWidget(
+      MedicalBookingApp(
+        dependencies: AppDependencies.demo(latency: Duration.zero),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -32,32 +38,38 @@ void main() {
     expect(find.text('Toma de muestra de sangre'), findsOneWidget);
   });
 
-  testWidgets('starting without a session asks for login, then continues to the booking page', (tester) async {
-    await pumpApp(tester, size: const Size(1400, 2400));
+  testWidgets(
+    'starting without a session asks for login, then continues to the booking page',
+    (tester) async {
+      await pumpApp(tester, size: const Size(1400, 2400));
 
-    await tester.tap(find.text('Comenzar'));
-    await tester.pumpAndSettle();
-    expect(find.text('PORTAL DEL PACIENTE'), findsOneWidget);
+      await tester.tap(find.text('Comenzar'));
+      await tester.pumpAndSettle();
+      expect(find.text('PORTAL DEL PACIENTE'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Reservar una cita'), findsOneWidget);
-    expect(find.text('Elige un servicio'), findsOneWidget);
-  });
+      expect(find.text('Reservar una cita'), findsOneWidget);
+      expect(find.text('1 · SERVICIO'), findsOneWidget);
+    },
+  );
 
-  testWidgets('the header sign-in goes to the portal and lists appointments and results', (tester) async {
-    await pumpApp(tester, size: const Size(1400, 2400));
+  testWidgets(
+    'the header sign-in goes to the portal and lists appointments and results',
+    (tester) async {
+      await pumpApp(tester, size: const Size(1400, 2400));
 
-    await tester.tap(find.text('INICIAR SESIÓN'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Hola, María'), findsOneWidget);
-    expect(find.textContaining('Citas ('), findsOneWidget);
-    expect(find.text('Toma de muestra de sangre'), findsWidgets);
-  });
+      expect(find.text('Bienvenido, María'), findsOneWidget);
+      expect(find.text('Citas'), findsOneWidget);
+      expect(find.text('Toma de muestra de sangre'), findsWidgets);
+    },
+  );
 
   testWidgets('the phone layout shows the short sign-in label', (tester) async {
     await pumpApp(tester, size: const Size(375, 812));

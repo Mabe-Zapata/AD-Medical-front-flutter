@@ -11,6 +11,13 @@ abstract final class Tokens {
   static const gradientStart = Color(0xFFC2410C);
   static const gradientEnd = Color(0xFFC84A0B);
 
+  /// The blue of the laboratory's identity next to the orange: information, secondary actions and calm panels.
+  static const blue = Color(0xFF1D56A6);
+  static const blueDeep = Color(0xFF12376F);
+  static const blueText = Color(0xFF2F4F87);
+  static const blueSoft = Color(0xFFD6E2F5);
+  static const blueTint = Color(0xFFEEF3FB);
+
   static const ink = Color(0xFF1E2432);
   static const muted = Color(0xFF656B78);
 
@@ -24,7 +31,7 @@ abstract final class Tokens {
   static const success = Color(0xFF15803D);
   static const danger = Color(0xFFDC2626);
   static const warning = Color(0xFFB45309);
-  static const info = Color(0xFF2563EB);
+  static const info = blue;
 
   static const brandGradient = LinearGradient(colors: [gradientStart, gradientEnd]);
 

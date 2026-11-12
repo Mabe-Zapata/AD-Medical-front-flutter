@@ -8,7 +8,7 @@ const modalSplitWidth = 760.0;
 
 /// Modal with a brand panel on the left and the task on the right. On phones it is a full-screen
 /// sheet: a short brand header on top and the task below. Presentational: [child] is the task.
-class TwoPanelModal extends StatelessWidget {
+class TwoPanelModal extends StatefulWidget {
   const TwoPanelModal({
     super.key,
     required this.tag,
@@ -17,6 +17,10 @@ class TwoPanelModal extends StatelessWidget {
     required this.footerLabel,
     required this.footerNote,
     required this.child,
+    this.action,
+    this.aside,
+    this.asideWidth = 310,
+    this.header,
   });
 
   final String tag;
@@ -28,11 +32,63 @@ class TwoPanelModal extends StatelessWidget {
   /// The task. It scrolls inside the modal when it does not fit.
   final Widget child;
 
+  /// The main button of the task. It stays pinned below the scrolling area, so it is always within reach.
+  final Widget? action;
+
+  /// Replaces the brand panel on a wide screen (e.g. a live summary). On a phone the brand header still shows.
+  final Widget? aside;
+  final double asideWidth;
+
+  /// Pinned above the scrolling task on a wide screen (title and steps); on a phone the brand header carries them.
+  final Widget? header;
+
+  @override
+  State<TwoPanelModal> createState() => _TwoPanelModalState();
+}
+
+class _TwoPanelModalState extends State<TwoPanelModal> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     return size.width >= modalSplitWidth ? _wide(context, size) : _sheet(context);
   }
+
+  /// The task with a visible scrollbar (so people see there is more below) and the pinned action underneath.
+  Widget _task(EdgeInsets padding, {Widget? header}) => Column(
+    children: [
+      if (header != null) Padding(padding: EdgeInsets.fromLTRB(padding.left, padding.top, padding.right, 0), child: header),
+      Expanded(
+        child: Scrollbar(
+          controller: _scroll,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _scroll,
+            padding: header == null ? padding : padding.copyWith(top: 18),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: widget.child,
+          ),
+        ),
+      ),
+      if (widget.action != null)
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(padding.left, 12, padding.right, 14),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Tokens.slate200)),
+          ),
+          child: widget.action,
+        ),
+    ],
+  );
 
   Widget _wide(BuildContext context, Size size) => Center(
     child: Material(
@@ -41,16 +97,21 @@ class TwoPanelModal extends StatelessWidget {
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        width: math.min(1000, size.width - 48),
-        height: math.min(700, size.height - 48),
+        width: math.min(1040, size.width - 32),
+        height: math.min(760, size.height - 32),
         child: Row(
           children: [
-            Expanded(flex: 4, child: _BrandPanel(this)),
+            if (widget.aside != null)
+              SizedBox(width: widget.asideWidth, child: widget.aside)
+            else
+              Expanded(flex: 4, child: _BrandPanel(widget)),
             Expanded(
               flex: 6,
               child: Stack(
                 children: [
-                  SingleChildScrollView(padding: const EdgeInsets.fromLTRB(40, 36, 40, 32), child: child),
+                  widget.header == null
+                      ? _task(const EdgeInsets.fromLTRB(36, 28, 36, 20))
+                      : _task(const EdgeInsets.fromLTRB(36, 26, 36, 12), header: widget.header),
                   const Positioned(top: 12, right: 12, child: _CloseButton(dark: true)),
                 ],
               ),
@@ -76,10 +137,10 @@ class TwoPanelModal extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _TagPill(tag),
+                    _TagPill(widget.tag),
                     const SizedBox(height: 10),
                     Text(
-                      headline,
+                      widget.headline,
                       style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, height: 1.15),
                     ),
                   ],
@@ -89,13 +150,7 @@ class TwoPanelModal extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: child,
-          ),
-        ),
+        Expanded(child: _task(const EdgeInsets.fromLTRB(20, 20, 20, 16))),
       ],
     ),
   );

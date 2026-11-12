@@ -12,6 +12,13 @@ paciente**; el sistema del personal vive en `../frontend-angular`. Ambos deben v
 5. No guardes secretos ni tokens en URLs, logs ni código. Las credenciales de demo viven solo en `infrastructure/demo`.
 6. **Contraste AA**: todo texto debe cumplir WCAG AA (4.5:1). Los tokens naranja, verde y ámbar ya están calibrados (`test/core/design/contrast_test.dart`); no los aclares ni uses `slate400` o menos para texto.
 
+## Diseño y experiencia (heurísticas de Nielsen)
+
+- Paleta: naranja de marca + **azul** (`Tokens.blue`, `blueDeep`, `blueText`, `blueSoft`, `blueTint`, ya con contraste AA fijado en `contrast_test.dart`). El azul es para información, acciones secundarias y paneles tranquilos; el naranja, para la acción principal.
+- **Listas y tablas**: paginación controlable, por defecto de **5** filas (`PaginationBar`, `pageOf`; opciones 5, 10 y 20). Se oculta si todo cabe en 5.
+- **Mensajes**: amigables y accionables; **nunca códigos de soporte ni ids técnicos** (viven en los logs). Todo fallo de una lista ofrece "Reintentar"; todo estado vacío dice qué hacer después.
+- Control y prevención: confirmación antes de cancelar, quitar una tarjeta o pagar; botones desactivados mientras algo está en curso; filtros por estado en las citas.
+
 ## Arquitectura
 
 Feature-first (screaming) con Clean Architecture dentro de cada feature. La dependencia apunta hacia adentro:
