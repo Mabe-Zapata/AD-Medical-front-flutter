@@ -12,12 +12,13 @@ import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/widgets/next_appointment_card.dart';
+import 'package:medicalbooking_portal/features/portal/presentation/widgets/summary_tiles.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/widgets/profile_prompt.dart';
-import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
@@ -181,9 +182,12 @@ class _PortalPageState extends State<PortalPage> {
             primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
             child: Column(
               children: [
-                Constrained(
+                Stack(
+                  children: [
+                    const Positioned(top: 0, left: 0, right: 0, height: 190, child: _Band()),
+                    Constrained(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 40),
+                    padding: const EdgeInsets.only(top: 28, bottom: 40),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -191,7 +195,7 @@ class _PortalPageState extends State<PortalPage> {
                           name: patient.firstName,
                           onBook: () => Navigator.of(context).pushNamed(Routes.book),
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 56),
                         LayoutBuilder(
                           builder: (context, constraints) {
                             // Wide: the appointments take the main column and the account sits beside them.
@@ -214,6 +218,7 @@ class _PortalPageState extends State<PortalPage> {
                                     width: 320,
                                     child: Column(
                                       children: [
+                                        const SizedBox(height: 64),
                                         ProfileSummary(patient, vertical: true),
                                         const SizedBox(height: 16),
                                         prompt,
@@ -234,6 +239,8 @@ class _PortalPageState extends State<PortalPage> {
                     ),
                   ),
                 ),
+                  ],
+                ),
                 SiteFooter(demo: AppScope.of(context).isDemo),
               ],
             ),
@@ -243,10 +250,47 @@ class _PortalPageState extends State<PortalPage> {
     );
   }
 
+  /// The next appointment that still holds its slot, shown large while the list is unfiltered.
+  Appointment? get _featured {
+    if (_filter != _Filter.all) return null;
+    final now = DateTime.now().toUtc();
+    final upcoming = [
+      for (final a in _controller.appointments)
+        if (a.holdsSlot && a.slot.startUtc.isAfter(now)) a,
+    ]..sort((a, b) => a.slot.startUtc.compareTo(b.slot.startUtc));
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
+
   /// Tabs (with the appointment filters on the same row), notices and the content of the chosen tab.
   Widget _main(AppDependencies deps, Patient patient, ErrorView? error, String? notice) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      if (_tab == 0 && !_controller.loading) ...[
+        if (_featured != null) ...[
+          NextAppointmentCard(
+            _featured!,
+            processing: _controller.isProcessing(_featured!),
+            onPay: _controller.working ? null : () => _pay(_featured!),
+            onCancel: _controller.working ? null : () => _confirmCancel(_featured!),
+          ),
+          const SizedBox(height: 20),
+        ],
+        SummaryTiles(
+          toPay: _controller.appointments.where((a) => a.status == AppointmentStatus.pendingPayment).length,
+          confirmed: _controller.appointments.where((a) => a.status == AppointmentStatus.confirmed).length,
+          resultsReady: _controller.orders.where((o) => o.hasValidatedResults).length,
+          onToPay: () => setState(() {
+            _filter = _Filter.toPay;
+            _appointmentPage = 0;
+          }),
+          onConfirmed: () => setState(() {
+            _filter = _Filter.confirmed;
+            _appointmentPage = 0;
+          }),
+          onResults: () => setState(() => _tab = 1),
+        ),
+        const SizedBox(height: 20),
+      ],
       SizedBox(
         width: double.infinity,
         child: Wrap(
@@ -318,7 +362,7 @@ class _PortalPageState extends State<PortalPage> {
     final all = _controller.appointments;
     final items = [
       for (final a in all)
-        if (_filter.matches(a.status)) a,
+        if (_filter.matches(a.status) && a.id != _featured?.id) a,
     ];
     return [
       if (all.isEmpty)
@@ -327,7 +371,7 @@ class _PortalPageState extends State<PortalPage> {
           action: 'Agendar mi primera cita',
           onAction: () => Navigator.of(context).pushNamed(Routes.book),
         )
-      else if (items.isEmpty)
+      else if (items.isEmpty && _featured == null)
         _Empty(
           'No tienes citas en "${_filter.label}".',
           action: 'Ver todas',
@@ -422,21 +466,73 @@ class _Greeting extends StatelessWidget {
           children: [
             Text(
               name == null ? 'Bienvenido' : 'Bienvenido, $name',
-              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Tokens.slate900),
+              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: Tokens.orangeTint, borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                borderRadius: BorderRadius.circular(999),
+              ),
               child: const Text(
                 'PORTAL DEL PACIENTE',
-                style: TextStyle(color: Tokens.orangeDeep, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1),
               ),
             ),
           ],
         ),
-        GradientButton(label: 'Agendar nueva cita', onPressed: onBook),
+        FilledButton.icon(
+          onPressed: onBook,
+          icon: const Icon(Icons.add, size: 20),
+          label: const Text('Agendar nueva cita'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Tokens.orangeDeep,
+            minimumSize: const Size(0, 50),
+            padding: const EdgeInsets.symmetric(horizontal: 26),
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.3),
+          ),
+        ),
       ],
     ),
+  );
+}
+
+/// The deep blue band behind the greeting, with soft shapes for depth. The cards of the page overlap its lower edge.
+class _Band extends StatelessWidget {
+  const _Band();
+
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    child: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Tokens.blueDeep, Tokens.blue]),
+      ),
+      child: Stack(
+        children: [
+          Positioned(right: -80, top: -140, child: _Disc(420, fill: Colors.white.withValues(alpha: 0.07))),
+          Positioned(right: 140, top: 30, child: _Disc(200, ring: Colors.white.withValues(alpha: 0.18))),
+          Positioned(left: -60, bottom: -120, child: _Disc(300, fill: Tokens.orange.withValues(alpha: 0.30))),
+        ],
+      ),
+    ),
+  );
+}
+
+class _Disc extends StatelessWidget {
+  const _Disc(this.size, {this.fill, this.ring});
+
+  final double size;
+  final Color? fill;
+  final Color? ring;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(shape: BoxShape.circle, color: fill, border: ring == null ? null : Border.all(color: ring!)),
   );
 }
 

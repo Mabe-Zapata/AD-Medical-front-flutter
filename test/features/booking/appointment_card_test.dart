@@ -48,7 +48,7 @@ void main() {
         find.textContaining('Pago pendiente de procesamiento'),
         findsOneWidget,
       );
-      expect(find.text('En procesamiento'), findsOneWidget);
+      expect(find.text('Procesando pago'), findsOneWidget);
     },
   );
 }
