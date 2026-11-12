@@ -27,8 +27,7 @@ class PortalController extends ChangeNotifier {
 
   static const _payOverrides = {
     ErrorKind.forbidden: 'No se pudo iniciar el pago de esta cita.',
-    ErrorKind.conflict:
-        'No se pudo iniciar el pago: la cita ya no está pendiente, o ya tiene un pago en curso. Si recargaste la página, no podemos retomarlo desde aquí.',
+    ErrorKind.conflict: 'No se pudo iniciar el pago: la cita ya no está pendiente, o ya tiene un pago en curso. Si recargaste la página, no podemos retomarlo desde aquí.',
     ErrorKind.unavailable: 'El pago en línea no está disponible por ahora. Inténtalo más tarde o contacta al laboratorio.',
   };
 
@@ -103,14 +102,25 @@ class PortalController extends ChangeNotifier {
     if (patient == null) return null;
     CheckoutStart? start;
     await _run(() async {
-      start = await _startCheckout(patientId: patient.id, appointment: appointment);
+      start = await _startCheckout(
+        patientId: patient.id,
+        appointment: appointment,
+      );
     }, overrides: _payOverrides);
     return start;
   }
 
   /// The patient submitted the payment form. The reload brings back the card if it was saved.
-  Future<void> paymentSent(Appointment appointment) =>
-      _run(() async => _notice = 'Pago enviado. Tu cita ${appointment.id} se confirmará en cuanto el banco avise.');
+  Future<void> paymentSent(Appointment appointment) => _run(() async {
+    _processing.add(appointment.id);
+    _notice = 'Pago enviado. Tu cita se confirmará en cuanto el banco avise.';
+  });
+
+  /// Appointments whose payment was sent and still waits for the bank's confirmation (kept while the page is open).
+  final Set<String> _processing = {};
+
+  bool isProcessing(Appointment appointment) =>
+      _processing.contains(appointment.id);
 
   Future<void> removeCard() async {
     final patient = _session.patient;
@@ -121,7 +131,10 @@ class PortalController extends ChangeNotifier {
     });
   }
 
-  Future<void> _run(Future<void> Function() action, {Map<ErrorKind, String> overrides = const {}}) async {
+  Future<void> _run(
+    Future<void> Function() action, {
+    Map<ErrorKind, String> overrides = const {},
+  }) async {
     _working = true;
     _error = null;
     _notice = null;

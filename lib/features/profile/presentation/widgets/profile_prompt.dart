@@ -16,9 +16,11 @@ class ProfilePrompt extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: declared == null ? Tokens.orangeTint : Colors.white,
+        color: declared == null ? Tokens.orangeTint : Tokens.blueTint,
         borderRadius: BorderRadius.circular(Tokens.radiusMd),
-        border: Border.all(color: declared == null ? Tokens.orangeSoft : Tokens.slate200),
+        border: Border.all(
+          color: declared == null ? Tokens.orangeSoft : Tokens.blueSoft,
+        ),
       ),
       child: Wrap(
         spacing: 16,
@@ -33,16 +35,17 @@ class ProfilePrompt extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  declared == null ? Icons.assignment_outlined : Icons.check_circle_outline,
-                  color: declared == null ? Tokens.orange : Tokens.success,
+                  declared == null
+                      ? Icons.assignment_outlined
+                      : Icons.verified_user_outlined,
+                  color: declared == null ? Tokens.orange : Tokens.blue,
                 ),
                 const SizedBox(width: 12),
                 Flexible(
                   child: declared == null
                       ? const _Message(
                           title: 'Completa tu perfil clínico',
-                          text:
-                              'Indica tu altitud de residencia y si fumas: se usan para interpretar tu hemoglobina.',
+                          text: 'Indica tu altitud de residencia y si fumas: se usan para interpretar tu hemoglobina.',
                         )
                       : _Message(
                           title: 'Perfil clínico completo',
@@ -55,7 +58,11 @@ class ProfilePrompt extends StatelessWidget {
           ),
           declared == null
               ? FilledButton(onPressed: onOpen, child: const Text('Completar'))
-              : TextButton(onPressed: onOpen, child: const Text('Editar')),
+              : TextButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Editar'),
+                ),
         ],
       ),
     );
@@ -72,9 +79,18 @@ class _Message extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, color: Tokens.slate900)),
+      Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: Tokens.slate900,
+        ),
+      ),
       const SizedBox(height: 2),
-      Text(text, style: const TextStyle(fontSize: 13, color: Tokens.muted, height: 1.4)),
+      Text(
+        text,
+        style: const TextStyle(fontSize: 13, color: Tokens.muted, height: 1.4),
+      ),
     ],
   );
 }

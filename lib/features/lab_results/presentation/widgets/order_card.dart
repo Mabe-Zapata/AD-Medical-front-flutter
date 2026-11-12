@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
-import 'package:medicalbooking_portal/core/format/es_format.dart';
-import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
+import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/result_format.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/status_chip.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 
@@ -21,7 +20,11 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 };
 
 class OrderCard extends StatelessWidget {
-  const OrderCard({super.key, required this.order, required this.onViewResults});
+  const OrderCard({
+    super.key,
+    required this.order,
+    required this.onViewResults,
+  });
 
   final LabOrder order;
   final VoidCallback onViewResults;
@@ -42,29 +45,39 @@ class OrderCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Orden ${order.id}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Tokens.slate900)),
-                  const SizedBox(height: 2),
                   Text(
-                    [
-                      if (order.orderedAt != null) dayLabel(branchTime(order.orderedAt!)),
-                      ?order.doctorName,
-                    ].join(' · '),
-                    style: const TextStyle(color: Tokens.muted, fontSize: 12),
+                    orderTitle(order),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: Tokens.slate900,
+                    ),
                   ),
+                  if (order.doctorName != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Solicitada por ${order.doctorName}',
+                      style: const TextStyle(color: Tokens.muted, fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
               Wrap(
                 spacing: 8,
                 children: [
                   StatusChip(label, color),
-                  if (order.priority == OrderPriority.urgent) const StatusChip('Urgente', Tokens.danger),
+                  if (order.priority == OrderPriority.urgent)
+                    const StatusChip('Urgente', Tokens.danger),
                 ],
               ),
             ],
           ),
           if (order.notes != null) ...[
             const SizedBox(height: 8),
-            Text(order.notes!, style: const TextStyle(color: Tokens.slate600, fontSize: 13)),
+            Text(
+              order.notes!,
+              style: const TextStyle(color: Tokens.slate600, fontSize: 13),
+            ),
           ],
           const Divider(height: 28),
           for (final detail in order.details)
@@ -73,16 +86,29 @@ class OrderCard extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(detail.testName, style: const TextStyle(fontWeight: FontWeight.w600, color: Tokens.slate700)),
+                    child: Text(
+                      detail.testName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Tokens.slate700,
+                      ),
+                    ),
                   ),
-                  StatusChip(_detailStatus(detail.status).$1, _detailStatus(detail.status).$2),
+                  StatusChip(
+                    _detailStatus(detail.status).$1,
+                    _detailStatus(detail.status).$2,
+                  ),
                 ],
               ),
             ),
           const SizedBox(height: 6),
           FilledButton(
             onPressed: order.hasValidatedResults ? onViewResults : null,
-            child: Text(order.hasValidatedResults ? 'Ver resultados' : 'Resultados aún no disponibles'),
+            child: Text(
+              order.hasValidatedResults
+                  ? 'Ver resultados'
+                  : 'Resultados aún no disponibles',
+            ),
           ),
         ],
       ),

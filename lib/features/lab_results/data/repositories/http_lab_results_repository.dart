@@ -14,45 +14,73 @@ class HttpLabResultsRepository implements LabResultsRepository {
 
   @override
   Future<List<LabOrder>> ordersOf(String patientId) async {
-    final list = await _api.get('/lab/orders', query: {'limit': '$_newest'}) as Map<String, dynamic>;
-    final ids = [for (final item in list['items'] as List) (item as Map<String, dynamic>)['id'] as String];
-    final orders = await Future.wait(ids.map((id) => _read(id, patientId)));
+    final list = await _api.get(
+      '/lab/orders',
+      query: {'limit': '$_newest'},
+    ) as Map<String, dynamic>;
+    final items = [
+      for (final item in list['items'] as List) item as Map<String, dynamic>,
+    ];
+    final orders = await Future.wait(
+      items.map(
+        (item) => _read(
+          item['id'] as String,
+          patientId,
+          DateTime.tryParse('${item['fecha']}'),
+        ),
+      ),
+    );
     // The listing is newest first and so is the result.
     return orders.whereType<LabOrder>().toList();
   }
 
   /// One order with its results, or null when it cannot be read: one bad order must not hide the others.
-  Future<LabOrder?> _read(String id, String patientId) async {
+  Future<LabOrder?> _read(
+    String id,
+    String patientId,
+    DateTime? orderedAt,
+  ) async {
     try {
       final order = await _api.get('/lab/orders/$id') as Map<String, dynamic>;
-      final results = await _api.get('/lab/orders/$id/results') as Map<String, dynamic>;
-      return _order(order, results, patientId);
+      final results =
+          await _api.get('/lab/orders/$id/results') as Map<String, dynamic>;
+      return _order(order, results, patientId, orderedAt);
     } on AppError {
       return null;
     }
   }
 
-  LabOrder _order(Map<String, dynamic> order, Map<String, dynamic> results, String patientId) {
+  LabOrder _order(
+    Map<String, dynamic> order,
+    Map<String, dynamic> results,
+    String patientId,
+    DateTime? orderedAt,
+  ) {
     final byDetail = <String, List<AnalyteResult>>{};
     for (final item in results['items'] as List) {
       final r = item as Map<String, dynamic>;
-      byDetail.putIfAbsent(r['detalle_id'] as String, () => []).add(
-        AnalyteResult(
-          name: r['nombre_analito'] as String,
-          valueNumeric: (r['valor_numerico'] as num?)?.toDouble(),
-          valueText: r['valor_texto'] as String?,
-          unit: r['unidad'] as String?,
-          validated: true,
-        ),
-      );
+      byDetail
+          .putIfAbsent(r['detalle_id'] as String, () => [])
+          .add(
+            AnalyteResult(
+              name: r['nombre_analito'] as String,
+              valueNumeric: (r['valor_numerico'] as num?)?.toDouble(),
+              valueText: r['valor_texto'] as String?,
+              unit: r['unidad'] as String?,
+              validated: true,
+            ),
+          );
     }
     final tests = order['pruebas'] as List;
     return LabOrder(
       id: order['id'] as String,
       // The app identifies the patient by the user id, not by the API's patient id.
       patientId: patientId,
-      priority: order['prioridad'] == 'URGENTE' ? OrderPriority.urgent : OrderPriority.normal,
+      priority: order['prioridad'] == 'URGENTE'
+          ? OrderPriority.urgent
+          : OrderPriority.normal,
       status: _orderStatus(order['estado'] as String),
+      orderedAt: orderedAt,
       notes: order['observaciones'] as String?,
       details: [
         for (var i = 0; i < tests.length; i++)

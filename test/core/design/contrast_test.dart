@@ -22,6 +22,25 @@ void main() {
     }
   });
 
+  test('the blue family keeps AA: text on white and on its own tint, white text on the navy', () {
+    for (final color in [Tokens.blue, Tokens.blueDeep, Tokens.blueText]) {
+      expect(
+        _ratio(color, white),
+        greaterThanOrEqualTo(4.5),
+        reason: '$color on white',
+      );
+      expect(
+        _ratio(color, Tokens.blueTint),
+        greaterThanOrEqualTo(4.5),
+        reason: '$color on the blue tint',
+      );
+    }
+    expect(_ratio(white, Tokens.blue), greaterThanOrEqualTo(4.5));
+    expect(_ratio(white, Tokens.blueDeep), greaterThanOrEqualTo(4.5));
+    // The orange used on the tinted tabs and panels.
+    expect(_ratio(Tokens.orange, Tokens.blueTint), greaterThanOrEqualTo(4.5));
+  });
+
   test('white text on the brand button and gradient meets AA', () {
     for (final color in [Tokens.orange, Tokens.gradientStart, Tokens.gradientEnd]) {
       expect(_ratio(white, color), greaterThanOrEqualTo(4.5), reason: 'white on $color');

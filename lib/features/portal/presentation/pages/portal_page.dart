@@ -4,6 +4,9 @@ import 'package:medicalbooking_portal/features/payments/presentation/pages/payme
 import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/payment_methods_section.dart';
 import 'package:medicalbooking_portal/app/app_scope.dart';
+import 'package:medicalbooking_portal/app/dependencies.dart';
+import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
@@ -16,7 +19,10 @@ import 'package:medicalbooking_portal/features/portal/presentation/widgets/profi
 import 'package:medicalbooking_portal/features/profile/presentation/widgets/profile_prompt.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/pagination_bar.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/pill_tabs.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_footer.dart';
 
@@ -31,9 +37,35 @@ class PortalPage extends StatefulWidget {
   State<PortalPage> createState() => _PortalPageState();
 }
 
+/// Which appointments the list shows.
+enum _Filter {
+  all('Todas'),
+  toPay('Por pagar'),
+  confirmed('Confirmadas'),
+  past('Anteriores');
+
+  const _Filter(this.label);
+
+  final String label;
+
+  bool matches(AppointmentStatus status) => switch (this) {
+    _Filter.all => true,
+    _Filter.toPay => status == AppointmentStatus.pendingPayment,
+    _Filter.confirmed => status == AppointmentStatus.confirmed,
+    _Filter.past =>
+      status != AppointmentStatus.pendingPayment &&
+          status != AppointmentStatus.confirmed,
+  };
+}
+
 class _PortalPageState extends State<PortalPage> {
   late final PortalController _controller;
   int _tab = 0;
+  _Filter _filter = _Filter.all;
+  int _appointmentPage = 0;
+  int _appointmentSize = defaultPageSize;
+  int _orderPage = 0;
+  int _orderSize = defaultPageSize;
 
   @override
   void initState() {
@@ -80,7 +112,8 @@ class _PortalPageState extends State<PortalPage> {
         final sent = await Navigator.of(context).push<bool>(
           modalRoute<bool>(
             settings: const RouteSettings(name: Routes.pay),
-            builder: (_) => PaymentDialog(appointment: appointment, checkout: start),
+            builder: (_) =>
+                PaymentDialog(appointment: appointment, checkout: start),
           ),
         );
         if (sent == true) await _controller.paymentSent(appointment);
@@ -94,10 +127,18 @@ class _PortalPageState extends State<PortalPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('¿Quitar tu tarjeta guardada?'),
-        content: const Text('Tendrás que escribir la tarjeta de nuevo la próxima vez que pagues.'),
+        content: const Text(
+          'Tendrás que escribir la tarjeta de nuevo la próxima vez que pagues.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Volver')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Quitar tarjeta')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Quitar tarjeta'),
+          ),
         ],
       ),
     );
@@ -111,8 +152,14 @@ class _PortalPageState extends State<PortalPage> {
         title: const Text('¿Cancelar esta cita?'),
         content: const Text('El horario quedará libre para otros pacientes.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Volver')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Cancelar cita')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Cancelar cita'),
+          ),
         ],
       ),
     );
@@ -140,72 +187,49 @@ class _PortalPageState extends State<PortalPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Wrap(
-                          spacing: 24,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              patient.firstName == null ? 'Bienvenido' : 'Hola, ${patient.firstName}',
-                              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Tokens.slate900),
-                            ),
-                            GradientButton(
-                              label: 'Nueva cita',
-                              onPressed: () => Navigator.of(context).pushNamed(Routes.book),
-                            ),
-                          ],
+                        _Greeting(
+                          name: patient.firstName,
+                          onBook: () => Navigator.of(context).pushNamed(Routes.book),
                         ),
-                        const SizedBox(height: 16),
-                        ProfileSummary(patient),
-                        const SizedBox(height: 16),
-                        ListenableBuilder(
-                          listenable: deps.clinicalProfiles,
-                          builder: (context, _) => ProfilePrompt(
-                            profile: deps.clinicalProfiles.of(patient.id),
-                            onOpen: () => Navigator.of(context).pushNamed(Routes.profile),
-                          ),
+                        const SizedBox(height: 22),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Wide: the appointments take the main column and the account sits beside them.
+                            final wide = constraints.maxWidth >= 920;
+                            final prompt = ListenableBuilder(
+                              listenable: deps.clinicalProfiles,
+                              builder: (context, _) => ProfilePrompt(
+                                profile: deps.clinicalProfiles.of(patient.id),
+                                onOpen: () => Navigator.of(context).pushNamed(Routes.profile),
+                              ),
+                            );
+                            final main = _main(deps, patient, error, notice);
+                            if (wide) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: main),
+                                  const SizedBox(width: 28),
+                                  SizedBox(
+                                    width: 320,
+                                    child: Column(
+                                      children: [
+                                        ProfileSummary(patient, vertical: true),
+                                        const SizedBox(height: 16),
+                                        prompt,
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            // Phone: the clinical profile first (it unlocks the results), the account last.
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [prompt, const SizedBox(height: 16), main, const SizedBox(height: 16), ProfileSummary(patient)],
+                            );
+                          },
                         ),
-                        const SizedBox(height: 28),
-                        SegmentedButton<int>(
-                          segments: [
-                            ButtonSegment(value: 0, label: Text('Citas (${_controller.appointments.length})')),
-                            ButtonSegment(value: 1, label: Text('Resultados de laboratorio (${_controller.orders.length})')),
-                            const ButtonSegment(value: 2, label: Text('Pagos')),
-                          ],
-                          selected: {_tab},
-                          onSelectionChanged: (selection) => setState(() => _tab = selection.first),
-                        ),
-                        const SizedBox(height: 20),
-                        if (notice != null) ...[
-                          InfoBanner(message: notice, color: Tokens.success, icon: Icons.check_circle_outline),
-                          const SizedBox(height: 16),
-                        ],
-                        if (error != null) ...[
-                          InfoBanner(
-                            message: error.supportCode == null
-                                ? error.message
-                                : '${error.message}\nCódigo de soporte: ${error.supportCode}',
-                            color: Tokens.danger,
-                            icon: Icons.error_outline,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        if (_controller.loading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
-                          )
-                        else if (_tab == 0)
-                          ..._appointments(isDemo: deps.isDemo)
-                        else if (_tab == 2)
-                          PaymentMethodsSection(
-                            card: _controller.card,
-                            holderName: patient.displayName,
-                            demo: deps.isDemo,
-                            onRemove: _controller.working ? null : _confirmRemoveCard,
-                          )
-                        else
-                          ..._results(patient.displayName, isDemo: deps.isDemo),
                       ],
                     ),
                   ),
@@ -219,18 +243,121 @@ class _PortalPageState extends State<PortalPage> {
     );
   }
 
+  /// Tabs (with the appointment filters on the same row), notices and the content of the chosen tab.
+  Widget _main(AppDependencies deps, Patient patient, ErrorView? error, String? notice) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            PillTabs(
+              selected: _tab,
+              onSelected: (value) => setState(() => _tab = value),
+              tabs: [
+                PillTab('Citas', count: _controller.appointments.length, icon: Icons.event_available_outlined),
+                PillTab('Resultados de laboratorio', count: _controller.orders.length, icon: Icons.science_outlined),
+                const PillTab('Pagos', icon: Icons.credit_card_outlined),
+              ],
+            ),
+            if (_tab == 0) _filters(),
+          ],
+        ),
+      ),
+      const SizedBox(height: 20),
+      if (notice != null) ...[
+        InfoBanner(message: notice, color: Tokens.success, icon: Icons.check_circle_outline),
+        const SizedBox(height: 16),
+      ],
+      if (error != null) ...[
+        ErrorBanner(error: error, onRetry: _controller.working ? null : _controller.load),
+        const SizedBox(height: 16),
+      ],
+      if (_controller.loading)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
+        )
+      else if (_tab == 0)
+        ..._appointments(isDemo: deps.isDemo)
+      else if (_tab == 2)
+        PaymentMethodsSection(
+          card: _controller.card,
+          holderName: patient.displayName,
+          demo: deps.isDemo,
+          onRemove: _controller.working ? null : _confirmRemoveCard,
+        )
+      else
+        ..._results(patient.displayName, isDemo: deps.isDemo),
+    ],
+  );
+
+  Widget _filters() => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final option in _Filter.values)
+        FilterChip(
+          label: Text(option.label),
+          selected: _filter == option,
+          showCheckmark: false,
+          selectedColor: Tokens.blueSoft,
+          onSelected: (_) => setState(() {
+            _filter = option;
+            _appointmentPage = 0;
+          }),
+        ),
+    ],
+  );
+
   List<Widget> _appointments({required bool isDemo}) {
-    final items = _controller.appointments;
+    final all = _controller.appointments;
+    final items = [
+      for (final a in all)
+        if (_filter.matches(a.status)) a,
+    ];
     return [
-      if (items.isEmpty) const _Empty('Aún no tienes citas.'),
-      for (final appointment in items) ...[
+      if (all.isEmpty)
+        _Empty(
+          'Aún no tienes citas.',
+          action: 'Agendar mi primera cita',
+          onAction: () => Navigator.of(context).pushNamed(Routes.book),
+        )
+      else if (items.isEmpty)
+        _Empty(
+          'No tienes citas en "${_filter.label}".',
+          action: 'Ver todas',
+          onAction: () => setState(() => _filter = _Filter.all),
+        ),
+      for (final appointment in pageOf(
+        items,
+        _appointmentPage,
+        _appointmentSize,
+      )) ...[
         AppointmentCard(
           appointment,
+          processing: _controller.isProcessing(appointment),
           onPay: _controller.working ? null : () => _pay(appointment),
-          onCancel: _controller.working ? null : () => _confirmCancel(appointment),
+          onCancel: _controller.working
+              ? null
+              : () => _confirmCancel(appointment),
         ),
         const SizedBox(height: 14),
       ],
+      PaginationBar(
+        total: items.length,
+        page: _appointmentPage,
+        pageSize: _appointmentSize,
+        onPage: (value) => setState(() => _appointmentPage = value),
+        onPageSize: (value) => setState(() {
+          _appointmentSize = value;
+          _appointmentPage = 0;
+        }),
+      ),
     ];
   }
 
@@ -244,23 +371,93 @@ class _PortalPageState extends State<PortalPage> {
       ),
       const SizedBox(height: 16),
       if (orders.isEmpty)
-        const _Empty('Aún no tienes órdenes de laboratorio.'),
-      for (final order in orders) ...[
+        const _Empty(
+          'Aún no tienes órdenes de laboratorio. Cuando tu médico te pida exámenes, aparecerán aquí.',
+        ),
+      for (final order in pageOf(orders, _orderPage, _orderSize)) ...[
         OrderCard(
           order: order,
-          onViewResults: () => showResultsDialog(context, order: order, patientName: patientName),
+          onViewResults: () => showResultsDialog(
+            context,
+            order: order,
+            patientName: patientName,
+          ),
         ),
         const SizedBox(height: 14),
       ],
+      PaginationBar(
+        total: orders.length,
+        page: _orderPage,
+        pageSize: _orderSize,
+        onPage: (value) => setState(() => _orderPage = value),
+        onPageSize: (value) => setState(() {
+          _orderSize = value;
+          _orderPage = 0;
+        }),
+      ),
     ];
   }
 }
 
-class _Empty extends StatelessWidget {
-  const _Empty(this.message);
+/// The name alone, with the portal tag beside it, and the main action at the right edge.
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.name, required this.onBook});
 
-  final String message;
+  final String? name;
+  final VoidCallback onBook;
 
   @override
-  Widget build(BuildContext context) => Panel(child: Text(message, style: const TextStyle(color: Tokens.muted)));
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: Wrap(
+      spacing: 24,
+      runSpacing: 14,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              name == null ? 'Bienvenido' : 'Bienvenido, $name',
+              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Tokens.slate900),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: Tokens.orangeTint, borderRadius: BorderRadius.circular(999)),
+              child: const Text(
+                'PORTAL DEL PACIENTE',
+                style: TextStyle(color: Tokens.orangeDeep, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1),
+              ),
+            ),
+          ],
+        ),
+        GradientButton(label: 'Agendar nueva cita', onPressed: onBook),
+      ],
+    ),
+  );
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty(this.message, {this.action, this.onAction});
+
+  final String message;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) => Panel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(message, style: const TextStyle(color: Tokens.muted)),
+        if (action != null) ...[
+          const SizedBox(height: 10),
+          OutlinedButton(onPressed: onAction, child: Text(action!)),
+        ],
+      ],
+    ),
+  );
 }
