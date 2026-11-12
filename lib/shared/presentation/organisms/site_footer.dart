@@ -12,7 +12,7 @@ class SiteFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Constrained(
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.only(top: 12, bottom: 32),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         spacing: 16,
@@ -20,11 +20,11 @@ class SiteFooter extends StatelessWidget {
         children: [
           Text(
             '© 2026 $brandName. Todos los derechos reservados.${demo ? ' Versión demo: los datos clínicos son ficticios.' : ''}',
-            style: const TextStyle(fontSize: 12, color: Tokens.slate500),
+            style: const TextStyle(fontSize: 12, color: Tokens.blueText),
           ),
           const Text(
             'Política de privacidad  •  Términos del servicio',
-            style: TextStyle(fontSize: 12, color: Tokens.slate500),
+            style: TextStyle(fontSize: 12, color: Tokens.blueText),
           ),
         ],
       ),

@@ -95,13 +95,34 @@ class LoginForm extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 16),
-      Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const Text('¿Aún no tienes cuenta? ', style: TextStyle(color: Tokens.muted)),
-          TextButton(onPressed: busy ? null : onRegister, child: const Text('Crear cuenta')),
-        ],
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: Tokens.blueTint,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Tokens.blueSoft),
+        ),
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Text('¿Aún no tienes cuenta?', style: TextStyle(color: Tokens.blueText)),
+            ),
+            TextButton(
+              onPressed: busy ? null : onRegister,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Crear cuenta', style: TextStyle(fontWeight: FontWeight.w800)),
+                  SizedBox(width: 6),
+                  Icon(Icons.arrow_forward, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       if (demoHint != null) ...[
         const SizedBox(height: 12),

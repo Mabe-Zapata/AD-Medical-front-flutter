@@ -33,10 +33,13 @@ ThemeData buildTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
-      border: border(Tokens.slate200),
-      enabledBorder: border(Tokens.slate200),
-      focusedBorder: border(Tokens.orange, 2),
+      fillColor: const Color(0xFFF8FAFD),
+      prefixIconColor: Tokens.blue,
+      suffixIconColor: Tokens.blueText,
+      border: border(Tokens.blueSoft),
+      enabledBorder: border(Tokens.blueSoft),
+      focusedBorder: border(Tokens.blue, 2),
     ),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: Tokens.blueDeep)),
   );
 }

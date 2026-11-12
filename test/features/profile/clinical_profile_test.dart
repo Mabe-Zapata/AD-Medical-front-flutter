@@ -9,14 +9,25 @@ import 'package:medicalbooking_portal/features/profile/data/repositories/http_cl
 import 'package:medicalbooking_portal/features/profile/domain/entities/clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/domain/policies/clinical_profile_policy.dart';
 import 'package:medicalbooking_portal/features/profile/domain/repositories/clinical_profile_repository.dart';
+import 'package:medicalbooking_portal/features/profile/domain/usecases/load_clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/domain/usecases/save_clinical_profile.dart';
+import 'package:medicalbooking_portal/features/profile/presentation/controllers/clinical_profile_controller.dart';
 
 class _Recording implements ClinicalProfileRepository {
   final saved = <ClinicalProfile>[];
 
   @override
   Future<void> save(ClinicalProfile profile) async => saved.add(profile);
+
+  @override
+  Future<ClinicalProfile?> read() async => saved.isEmpty ? null : saved.last;
 }
+
+ApiClient _apiReplying(String body, {int status = 200}) => ApiClient(
+  client: MockClient((_) async => http.Response(body, status, headers: {'content-type': 'application/json'})),
+  baseUrl: 'http://api.test/api/v1',
+  token: () => 'jwt',
+);
 
 void main() {
   group('profileProblems', () {
@@ -56,6 +67,45 @@ void main() {
       await SaveClinicalProfile(repository)(const ClinicalProfile(altitudeM: 2850, smoker: false));
 
       expect(repository.saved.single.altitudeM, 2850);
+    });
+  });
+
+  group('reading the profile back', () {
+    test('the repository returns what the backend stored', () async {
+      final api = _apiReplying('{"altitud_residencia_m":2850,"fumador":true,"cigarrillos_dia":5}');
+
+      final profile = await HttpClinicalProfileRepository(api).read();
+
+      expect([profile!.altitudeM, profile.smoker, profile.cigarettesPerDay], [2850, true, 5]);
+    });
+
+    test('an undeclared profile (nulls) reads as not complete', () async {
+      final api = _apiReplying('{"altitud_residencia_m":null,"fumador":null,"cigarrillos_dia":null}');
+
+      expect(await HttpClinicalProfileRepository(api).read(), isNull);
+    });
+
+    test('the controller remembers the stored profile so the portal stops asking', () async {
+      final repository = _Recording()..saved.add(const ClinicalProfile(altitudeM: 2850, smoker: false));
+      final controller = ClinicalProfileController(
+        save: SaveClinicalProfile(repository),
+        load: LoadClinicalProfile(repository),
+      );
+
+      await controller.load('p1');
+
+      expect(controller.of('p1')!.altitudeM, 2850);
+    });
+
+    test('a failed read keeps the prompt instead of raising', () async {
+      final controller = ClinicalProfileController(
+        save: SaveClinicalProfile(_Recording()),
+        load: LoadClinicalProfile(HttpClinicalProfileRepository(_apiReplying('{}', status: 503))),
+      );
+
+      await controller.load('p1');
+
+      expect(controller.of('p1'), isNull);
     });
   });
 

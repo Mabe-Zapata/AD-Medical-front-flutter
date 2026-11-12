@@ -99,11 +99,30 @@ class _RegisterFormState extends State<RegisterForm> {
             decoration: InputDecoration(
               labelText: 'Correo electrónico',
               prefixIcon: const Icon(Icons.mail_outline, size: 20),
-              helperText: 'Te enviaremos un enlace para activar tu cuenta y, después, las notificaciones de tus citas y resultados.',
-              helperMaxLines: 3,
               errorText: _error(RegistrationProblem.email),
             ),
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(color: Tokens.blueTint, borderRadius: BorderRadius.circular(12)),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: 1),
+                  child: Icon(Icons.info_outline, size: 16, color: Tokens.blue),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Te enviaremos un enlace para activar tu cuenta y, después, las notificaciones de tus citas y resultados.',
+                    style: TextStyle(fontSize: 12.5, height: 1.45, color: Tokens.blueText),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: _gap),
           pair(
@@ -201,7 +220,7 @@ class _Consent extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         dense: true,
         visualDensity: VisualDensity.compact,
-        activeColor: Tokens.orange,
+        activeColor: Tokens.blue,
         title: Text(text, style: const TextStyle(fontSize: 12.5, height: 1.4)),
       ),
       if (error != null)

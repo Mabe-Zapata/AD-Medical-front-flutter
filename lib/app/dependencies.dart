@@ -27,6 +27,7 @@ import 'package:medicalbooking_portal/features/lab_results/data/repositories/htt
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_my_lab_orders.dart';
 import 'package:medicalbooking_portal/features/profile/data/repositories/demo_clinical_profile_repository.dart';
 import 'package:medicalbooking_portal/features/profile/data/repositories/http_clinical_profile_repository.dart';
+import 'package:medicalbooking_portal/features/profile/domain/usecases/load_clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/domain/usecases/save_clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/controllers/clinical_profile_controller.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/demo_payment_repository.dart';
@@ -79,7 +80,10 @@ class AppDependencies {
       isDemo: true,
       session: _session(auth, store),
       verifyEmail: VerifyEmail(auth),
-      clinicalProfiles: ClinicalProfileController(save: SaveClinicalProfile(DemoClinicalProfileRepository(db))),
+      clinicalProfiles: ClinicalProfileController(
+        save: SaveClinicalProfile(DemoClinicalProfileRepository(db)),
+        load: LoadClinicalProfile(DemoClinicalProfileRepository(db)),
+      ),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
       getDaySlots: GetDaySlots(appointments),
       reserveAppointment: ReserveAppointment(appointments),
@@ -125,7 +129,10 @@ class AppDependencies {
       isDemo: false,
       session: session,
       verifyEmail: VerifyEmail(auth),
-      clinicalProfiles: ClinicalProfileController(save: SaveClinicalProfile(HttpClinicalProfileRepository(api))),
+      clinicalProfiles: ClinicalProfileController(
+        save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
+        load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
+      ),
       getCatalog: GetCatalog(
         StaticCatalogRepository(
           Catalog(

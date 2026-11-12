@@ -154,12 +154,13 @@ class _AuthDialogState extends State<AuthDialog> {
       ],
       footerLabel: login ? 'Acceso de pacientes' : 'Cuenta de paciente',
       footerNote: login ? 'Sesión segura' : 'Registro gratuito',
+      centered: true,
       child: sent
           ? RegistrationSent(email: _registeredEmail!, onLogin: _goToLogin)
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SectionLabel(login ? 'Bienvenido' : 'Nueva cuenta'),
+                SectionLabel(login ? 'Bienvenido' : 'Nueva cuenta', color: Tokens.blueText),
                 const SizedBox(height: 8),
                 Text(
                   login ? 'Iniciar sesión' : 'Crear cuenta',
