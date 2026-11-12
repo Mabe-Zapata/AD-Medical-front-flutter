@@ -9,4 +9,7 @@ class DemoClinicalProfileRepository implements ClinicalProfileRepository {
 
   @override
   Future<void> save(ClinicalProfile profile) => _db.simulateLatency();
+
+  @override
+  Future<ClinicalProfile?> read() async => null; // the demo starts every visit undeclared
 }

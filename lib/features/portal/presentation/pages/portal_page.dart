@@ -81,6 +81,8 @@ class _PortalPageState extends State<PortalPage> {
       removeSavedCard: deps.removeSavedCard,
       session: deps.session,
     )..load();
+    final patient = deps.session.patient;
+    if (patient != null) deps.clinicalProfiles.load(patient.id);
 
     final id = widget.justBookedId;
     if (id == null) return;

@@ -3,4 +3,7 @@ import 'package:medicalbooking_portal/features/profile/domain/entities/clinical_
 /// Port to the patient's clinical profile. Implementations throw `AppError` on failure.
 abstract interface class ClinicalProfileRepository {
   Future<void> save(ClinicalProfile profile);
+
+  /// What the patient already declared; null while the profile is not complete.
+  Future<ClinicalProfile?> read();
 }

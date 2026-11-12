@@ -168,6 +168,13 @@ void main() {
               'permissions': ['citas.reservar'],
             }, 200);
           case '/api/v1/me/perfil-clinico':
+            if (request.method == 'GET') {
+              return _json({
+                'altitud_residencia_m': null,
+                'fumador': null,
+                'cigarrillos_dia': null,
+              }, 200);
+            }
             bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
             return refuse
                 ? _json({
