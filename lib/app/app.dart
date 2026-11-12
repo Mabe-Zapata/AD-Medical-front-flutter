@@ -36,11 +36,14 @@ class MedicalBookingApp extends StatefulWidget {
 class _MedicalBookingAppState extends State<MedicalBookingApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final _router = AppRouter(widget.dependencies);
-  late bool _wasSignedIn = widget.dependencies.session.patient != null;
+
+  /// Read when the app starts: a session restored after a reload counts as signed in, so its expiry is noticed.
+  bool _wasSignedIn = false;
 
   @override
   void initState() {
     super.initState();
+    _wasSignedIn = widget.dependencies.session.patient != null;
     widget.dependencies.session.addListener(_onSessionChanged);
   }
 
