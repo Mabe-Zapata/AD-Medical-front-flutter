@@ -6,7 +6,10 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/about_section.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/catalog_section.dart';
+import 'package:medicalbooking_portal/features/catalog/presentation/widgets/cta_band.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/hero_section.dart';
+import 'package:medicalbooking_portal/features/catalog/presentation/widgets/page_backdrop.dart';
+import 'package:medicalbooking_portal/features/catalog/presentation/widgets/steps_band.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/site_footer.dart';
 
 /// Container: loads the public catalog and wires the sections to navigation.
@@ -18,7 +21,9 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
-  final _keys = {for (final id in ['home', 'about', 'product']) id: GlobalKey()};
+  final _keys = {
+    for (final id in ['home', 'about', 'product']) id: GlobalKey(),
+  };
   late final Future<Catalog> _catalog = AppScope.of(context).getCatalog();
 
   void _scrollTo(String id) {
@@ -33,38 +38,43 @@ class _LandingPageState extends State<LandingPage> {
     return Scaffold(
       body: SingleChildScrollView(
         primary: true, // desktop web: lets the keyboard (arrows, Page Up/Down) scroll the page
-        child: Column(
-          children: [
-            HeroSection(
-              key: _keys['home'],
-              header: AppHeader(onSection: _scrollTo),
-              onStart: () => navigator.pushNamed(Routes.book),
-            ),
-            FutureBuilder<Catalog>(
-              future: _catalog,
-              builder: (context, snapshot) {
-                final catalog = snapshot.data;
-                if (catalog == null) {
-                  return const SizedBox(
-                    height: 240,
-                    child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
+        child: PageBackdrop(
+          child: Column(
+            children: [
+              HeroSection(
+                key: _keys['home'],
+                header: AppHeader(onSection: _scrollTo),
+                onStart: () => navigator.pushNamed(Routes.book),
+                onSeeTests: () => _scrollTo('product'),
+              ),
+              const StepsBand(),
+              FutureBuilder<Catalog>(
+                future: _catalog,
+                builder: (context, snapshot) {
+                  final catalog = snapshot.data;
+                  if (catalog == null) {
+                    return const SizedBox(
+                      height: 240,
+                      child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      AboutSection(key: _keys['about'], branches: catalog.branches),
+                      CatalogSection(
+                        key: _keys['product'],
+                        testTypes: catalog.testTypes,
+                        services: catalog.services,
+                        onBook: (serviceId) => navigator.pushNamed(Routes.book, arguments: serviceId),
+                      ),
+                    ],
                   );
-                }
-                return Column(
-                  children: [
-                    AboutSection(key: _keys['about'], branches: catalog.branches),
-                    CatalogSection(
-                      key: _keys['product'],
-                      testTypes: catalog.testTypes,
-                      services: catalog.services,
-                      onBook: (serviceId) => navigator.pushNamed(Routes.book, arguments: serviceId),
-                    ),
-                  ],
-                );
-              },
-            ),
-            SiteFooter(demo: AppScope.of(context).isDemo),
-          ],
+                },
+              ),
+              CtaBand(onRegister: () => navigator.pushNamed(Routes.register)),
+              SiteFooter(demo: AppScope.of(context).isDemo),
+            ],
+          ),
         ),
       ),
     );
