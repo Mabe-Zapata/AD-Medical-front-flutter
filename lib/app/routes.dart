@@ -9,5 +9,8 @@ abstract final class Routes {
   static const sessionExpired = '/sesion-expirada';
   static const paymentDone = '/pago/exito';
   static const paymentCancelled = '/pago/cancelado';
+
+  /// Where the backend's embedded Stripe page sends the browser when it finishes (`return_url`).
+  static const paymentReturn = '/pago/retorno';
   static const profile = '/perfil';
 }

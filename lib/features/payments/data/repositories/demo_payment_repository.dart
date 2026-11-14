@@ -1,6 +1,8 @@
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_status.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/repositories/payment_repository.dart';
@@ -9,9 +11,52 @@ import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 /// Demo: opens a made-up in-portal card form and plays the backend's part when it is submitted: it declines
 /// the way Stripe's test cards do, saves the card when asked, and confirms the appointment like the webhook.
 class DemoPaymentRepository implements PaymentRepository {
-  const DemoPaymentRepository(this._db);
+  DemoPaymentRepository(this._db);
 
   final DemoDatabase _db;
+
+  /// Appointments paid in this demo session, and the ones already refunded.
+  final Set<String> _paid = {};
+  final Set<String> _refunded = {};
+
+  @override
+  bool knowsPayment(String appointmentId) => _paid.contains(appointmentId);
+
+  @override
+  Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId}) async {
+    await _db.simulateLatency();
+    if (!_paid.contains(appointmentId)) throw const AppError(ErrorKind.notFound, 'no checkout attempt yet', status: 404);
+    return CheckoutStatus(
+      paymentId: 'pay-$appointmentId',
+      state: CheckoutState.confirmed,
+      retriesDone: 0,
+      retriesMax: 5,
+      retriesExhausted: false,
+    );
+  }
+
+  /// Plays the backend's rules: only a cancelled, paid appointment, and one active refund per payment.
+  @override
+  Future<Refund> requestRefund({
+    required String patientId,
+    required String appointmentId,
+    required RefundReason reason,
+    String? text,
+  }) async {
+    await _db.simulateLatency();
+    final appointment = _db.appointments.where((a) => a.id == appointmentId && a.patientId == patientId).firstOrNull;
+    if (appointment == null || !_paid.contains(appointmentId)) throw const AppError(ErrorKind.notFound, 'not found', status: 404);
+    if (appointment.status != AppointmentStatus.cancelled) throw const AppError(ErrorKind.conflict, 'CITA_NO_CANCELADA', status: 409);
+    if (!_refunded.add(appointmentId)) throw const AppError(ErrorKind.conflict, 'REEMBOLSO_EXISTENTE', status: 409);
+    return Refund(
+      id: 'refund-$appointmentId',
+      paymentId: 'pay-$appointmentId',
+      state: RefundState.pending,
+      amount: appointment.service.basePrice.toStringAsFixed(2),
+      reason: reason.code,
+      requestedAt: DateTime.now().toUtc(),
+    );
+  }
 
   @override
   Future<CheckoutStart> startCheckout({required String patientId, required String appointmentId}) async {
@@ -42,6 +87,7 @@ class DemoPaymentRepository implements PaymentRepository {
           );
         }
     }
+    _paid.add(appointmentId);
     // What the signed webhook does in the real system.
     _db.appointments[index] = _db.appointments[index].copyWith(status: AppointmentStatus.confirmed);
   }

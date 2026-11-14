@@ -34,11 +34,15 @@ import 'package:medicalbooking_portal/features/payments/data/repositories/demo_p
 import 'package:medicalbooking_portal/features/payments/data/repositories/http_payment_repository.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/demo_saved_card_repository.dart';
 import 'package:medicalbooking_portal/features/payments/data/repositories/http_saved_card_repository.dart';
+import 'package:medicalbooking_portal/features/payments/data/storage/payment_trail_store_factory.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/mock_embedded_checkout.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/widgets/stripe_embedded_checkout.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 
 /// Composition root: the only place that knows the concrete repositories.
@@ -60,6 +64,8 @@ class AppDependencies {
     required this.cancelAppointment,
     required this.getMyLabOrders,
     required this.startCheckout,
+    required this.getCheckoutStatus,
+    required this.requestRefund,
     required this.getSavedCard,
     required this.openPage,
     required this.embeddedCheckout,
@@ -91,6 +97,8 @@ class AppDependencies {
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
       startCheckout: StartCheckout(payments),
+      getCheckoutStatus: GetCheckoutStatus(payments),
+      requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
       openPage: (_) {},
@@ -124,6 +132,7 @@ class AppDependencies {
     final appointments = HttpAppointmentRepository(api, now: now);
     final labs = HttpLabResultsRepository(api);
     final savedCards = HttpSavedCardRepository(api);
+    final payments = HttpPaymentRepository(api, trail: createPaymentTrailStore());
     final content = DemoDatabase(latency: Duration.zero);
     return AppDependencies._(
       isDemo: false,
@@ -147,12 +156,14 @@ class AppDependencies {
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
-      startCheckout: StartCheckout(HttpPaymentRepository(api)),
+      startCheckout: StartCheckout(payments),
+      getCheckoutStatus: GetCheckoutStatus(payments),
+      requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
       openPage: openPage ?? openExternalPage,
-      // The real form (Stripe.js) goes here. Until then the portal says so instead of pretending to charge.
-      embeddedCheckout: embeddedCheckout ?? unavailableEmbeddedCheckout,
+      // Stripe's own page in the browser; anywhere else the portal says so instead of pretending to charge.
+      embeddedCheckout: embeddedCheckout ?? stripeEmbeddedCheckout,
     );
   }
 
@@ -184,6 +195,8 @@ class AppDependencies {
   final CancelAppointment cancelAppointment;
   final GetMyLabOrders getMyLabOrders;
   final StartCheckout startCheckout;
+  final GetCheckoutStatus getCheckoutStatus;
+  final RequestRefund requestRefund;
   final GetSavedCard getSavedCard;
 
   /// Sends the browser to another page (the hosted payment page); a test replaces it.
