@@ -13,6 +13,8 @@ class SaveClinicalProfile {
       altitudeM: profile.altitudeM,
       smoker: profile.smoker,
       cigarettes: profile.cigarettesPerDay,
+      sex: profile.sex,
+      birthDate: profile.birthDate,
     );
     if (problems.isNotEmpty) throw AppError(ErrorKind.validation, problems.map((p) => p.name).join(', '));
     await _repository.save(profile);

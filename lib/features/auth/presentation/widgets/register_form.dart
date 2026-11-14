@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/policies/registration_policy.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/widgets/registration_messages.dart';
@@ -7,6 +8,7 @@ import 'package:medicalbooking_portal/shared/presentation/atoms/strength_bar.dar
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/password_field.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/personal_data_fields.dart';
 
 const _gap = 14.0;
 
@@ -30,6 +32,8 @@ class _RegisterFormState extends State<RegisterForm> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  BiologicalSex? _sex;
+  DateTime? _birthDate;
   bool _terms = false;
   bool _dataUse = false;
   bool _submitted = false;
@@ -48,6 +52,8 @@ class _RegisterFormState extends State<RegisterForm> {
       lastName: _lastName.text,
       email: _email.text,
       password: _password.text,
+      sex: _sex,
+      birthDate: _birthDate,
     ).normalized();
   }
 
@@ -102,6 +108,18 @@ class _RegisterFormState extends State<RegisterForm> {
               errorText: _error(RegistrationProblem.email),
             ),
             onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: _gap),
+          SexChoice(
+            value: _sex,
+            errorText: _error(RegistrationProblem.sex),
+            onChanged: (value) => setState(() => _sex = value),
+          ),
+          const SizedBox(height: _gap),
+          BirthDateField(
+            value: _birthDate,
+            errorText: _error(RegistrationProblem.birthDate),
+            onChanged: (value) => setState(() => _birthDate = value),
           ),
           const SizedBox(height: 8),
           Container(

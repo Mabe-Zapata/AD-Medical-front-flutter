@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/patient.dart';
@@ -20,7 +21,8 @@ class HttpAuthRepository implements AuthRepository {
   }
 
   /// `POST /auth/register`: public, answers 202 whatever the email. The role is not sent; the server fixes it
-  /// to patient, and it rejects any field it does not know (so no phone).
+  /// to patient, and it rejects any field it does not know (so no phone). `sexo` (`M`/`F`) and
+  /// `fecha_nacimiento` (`YYYY-MM-DD`) are optional for the server and sent only when the form has them.
   @override
   Future<void> register(NewPatientAccount account) async {
     await _api.post(
@@ -30,6 +32,8 @@ class HttpAuthRepository implements AuthRepository {
         'password': account.password,
         'first_name': account.firstName,
         'last_name': account.lastName,
+        if (account.sex != null) 'sexo': account.sex!.code,
+        if (account.birthDate != null) 'fecha_nacimiento': isoDate(account.birthDate!),
       },
       authenticated: false,
     );

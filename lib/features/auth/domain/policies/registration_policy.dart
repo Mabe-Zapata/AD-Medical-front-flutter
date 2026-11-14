@@ -1,17 +1,22 @@
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/features/auth/domain/entities/new_patient_account.dart';
 
 /// The backend refuses passwords shorter than this (`MIN_PASSWORD_LENGTH` of its identity module).
 const minPasswordLength = 12;
 
-enum RegistrationProblem { firstName, lastName, email, passwordLength }
+enum RegistrationProblem { firstName, lastName, email, sex, birthDate, passwordLength }
 
 final _email = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
-/// Everything wrong with [account], already normalized. Empty means it can be sent.
-List<RegistrationProblem> registrationProblems(NewPatientAccount account) => [
+/// Everything wrong with [account], already normalized. Empty means it can be sent. [now] is today, so a test
+/// can fix it.
+List<RegistrationProblem> registrationProblems(NewPatientAccount account, {DateTime? now}) => [
   if (account.firstName.isEmpty) RegistrationProblem.firstName,
   if (account.lastName.isEmpty) RegistrationProblem.lastName,
   if (!_email.hasMatch(account.email)) RegistrationProblem.email,
+  if (account.sex == null) RegistrationProblem.sex,
+  if (account.birthDate == null || !isValidBirthDate(account.birthDate!, now ?? DateTime.now()))
+    RegistrationProblem.birthDate,
   if (account.password.length < minPasswordLength) RegistrationProblem.passwordLength,
 ];
 

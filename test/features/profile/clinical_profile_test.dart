@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/features/profile/data/repositories/http_clinical_profile_repository.dart';
 import 'package:medicalbooking_portal/features/profile/domain/entities/clinical_profile.dart';
@@ -23,6 +24,17 @@ class _Recording implements ClinicalProfileRepository {
   Future<ClinicalProfile?> read() async => saved.isEmpty ? null : saved.last;
 }
 
+final _today = DateTime(2026, 11, 14);
+final _born = DateTime(1992, 5, 14);
+
+ClinicalProfile _profile({int altitude = 2850, bool smoker = false, int? cigarettes}) => ClinicalProfile(
+  altitudeM: altitude,
+  smoker: smoker,
+  sex: BiologicalSex.female,
+  birthDate: _born,
+  cigarettesPerDay: cigarettes,
+);
+
 ApiClient _apiReplying(String body, {int status = 200}) => ApiClient(
   client: MockClient((_) async => http.Response(body, status, headers: {'content-type': 'application/json'})),
   baseUrl: 'http://api.test/api/v1',
@@ -31,20 +43,45 @@ ApiClient _apiReplying(String body, {int status = 200}) => ApiClient(
 
 void main() {
   group('profileProblems', () {
+    List<ProfileProblem> problems({int? altitudeM, bool? smoker, int? cigarettes, BiologicalSex? sex = BiologicalSex.female, DateTime? birthDate}) =>
+        profileProblems(
+          altitudeM: altitudeM,
+          smoker: smoker,
+          cigarettes: cigarettes,
+          sex: sex,
+          birthDate: birthDate ?? _born,
+          now: _today,
+        );
+
     test('accepts a non-smoker and a smoker with their count', () {
-      expect(profileProblems(altitudeM: 2850, smoker: false), isEmpty);
-      expect(profileProblems(altitudeM: 0, smoker: true, cigarettes: 10), isEmpty);
+      expect(problems(altitudeM: 2850, smoker: false), isEmpty);
+      expect(problems(altitudeM: 0, smoker: true, cigarettes: 10), isEmpty);
+    });
+
+    test('asks for sex and birth date too', () {
+      expect(problems(altitudeM: 2850, smoker: false, sex: null), [ProfileProblem.sex]);
+      expect(
+        profileProblems(altitudeM: 2850, smoker: false, sex: BiologicalSex.male, now: _today),
+        [ProfileProblem.birthDate],
+      );
+    });
+
+    test('refuses a birth date in the future or more than 120 years ago', () {
+      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(2026, 11, 15)), [ProfileProblem.birthDate]);
+      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(1906, 11, 13)), [ProfileProblem.birthDate]);
+      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(2026, 11, 14)), isEmpty);
+      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(1906, 11, 14)), isEmpty);
     });
 
     test('asks for everything the backend requires', () {
-      expect(profileProblems(), [ProfileProblem.altitude, ProfileProblem.smoking]);
-      expect(profileProblems(altitudeM: 100, smoker: true), [ProfileProblem.cigarettes]);
+      expect(problems(), [ProfileProblem.altitude, ProfileProblem.smoking]);
+      expect(problems(altitudeM: 100, smoker: true), [ProfileProblem.cigarettes]);
     });
 
     test('keeps the backend limits', () {
-      expect(profileProblems(altitudeM: maxAltitudeM + 1, smoker: false), [ProfileProblem.altitude]);
-      expect(profileProblems(altitudeM: maxAltitudeM, smoker: false), isEmpty);
-      expect(profileProblems(altitudeM: 100, smoker: true, cigarettes: maxCigarettesPerDay + 1), [
+      expect(problems(altitudeM: maxAltitudeM + 1, smoker: false), [ProfileProblem.altitude]);
+      expect(problems(altitudeM: maxAltitudeM, smoker: false), isEmpty);
+      expect(problems(altitudeM: 100, smoker: true, cigarettes: maxCigarettesPerDay + 1), [
         ProfileProblem.cigarettes,
       ]);
     });
@@ -55,7 +92,7 @@ void main() {
       final repository = _Recording();
 
       await expectLater(
-        SaveClinicalProfile(repository)(const ClinicalProfile(altitudeM: 100, smoker: true)),
+        SaveClinicalProfile(repository)(_profile(altitude: 100, smoker: true)),
         throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.validation)),
       );
       expect(repository.saved, isEmpty);
@@ -64,7 +101,7 @@ void main() {
     test('saves a valid profile', () async {
       final repository = _Recording();
 
-      await SaveClinicalProfile(repository)(const ClinicalProfile(altitudeM: 2850, smoker: false));
+      await SaveClinicalProfile(repository)(_profile());
 
       expect(repository.saved.single.altitudeM, 2850);
     });
@@ -72,11 +109,22 @@ void main() {
 
   group('reading the profile back', () {
     test('the repository returns what the backend stored', () async {
-      final api = _apiReplying('{"altitud_residencia_m":2850,"fumador":true,"cigarrillos_dia":5}');
+      final api = _apiReplying(
+        '{"altitud_residencia_m":2850,"fumador":true,"cigarrillos_dia":5,"sexo":"F","fecha_nacimiento":"1992-05-14"}',
+      );
 
       final profile = await HttpClinicalProfileRepository(api).read();
 
       expect([profile!.altitudeM, profile.smoker, profile.cigarettesPerDay], [2850, true, 5]);
+      expect(profile.sex, BiologicalSex.female);
+      expect(profile.birthDate, DateTime(1992, 5, 14));
+    });
+
+    test('a profile with altitude and smoking but no sex or birth date reads as not complete', () async {
+      // What an older backend (or an account that never declared them) answers.
+      final api = _apiReplying('{"altitud_residencia_m":2850,"fumador":false,"cigarrillos_dia":null,"sexo":null,"fecha_nacimiento":null}');
+
+      expect(await HttpClinicalProfileRepository(api).read(), isNull);
     });
 
     test('an undeclared profile (nulls) reads as not complete', () async {
@@ -86,7 +134,7 @@ void main() {
     });
 
     test('the controller remembers the stored profile so the portal stops asking', () async {
-      final repository = _Recording()..saved.add(const ClinicalProfile(altitudeM: 2850, smoker: false));
+      final repository = _Recording()..saved.add(_profile());
       final controller = ClinicalProfileController(
         save: SaveClinicalProfile(repository),
         load: LoadClinicalProfile(repository),
@@ -130,18 +178,22 @@ void main() {
     }
 
     test('a non-smoker sends fumador false and no cigarette count', () async {
-      expect(await sent(const ClinicalProfile(altitudeM: 2850, smoker: false, cigarettesPerDay: 5)), {
+      expect(await sent(_profile(cigarettes: 5)), {
         'altitud_residencia_m': 2850,
         'fumador': false,
         'cigarrillos_dia': null,
+        'sexo': 'F',
+        'fecha_nacimiento': '1992-05-14',
       });
     });
 
     test('a smoker sends the count', () async {
-      expect(await sent(const ClinicalProfile(altitudeM: 0, smoker: true, cigarettesPerDay: 12)), {
+      expect(await sent(_profile(altitude: 0, smoker: true, cigarettes: 12)), {
         'altitud_residencia_m': 0,
         'fumador': true,
         'cigarrillos_dia': 12,
+        'sexo': 'F',
+        'fecha_nacimiento': '1992-05-14',
       });
     });
   });
