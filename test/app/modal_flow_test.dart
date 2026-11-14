@@ -54,6 +54,10 @@ void main() {
     await type(tester, 'Nombres', 'Ana');
     await type(tester, 'Apellidos', 'Pérez');
     await type(tester, 'Correo electrónico', 'ana@demo.test');
+    await tapText(tester, find.text('Femenino'));
+    await tapText(tester, find.byKey(const ValueKey('birth-date')));
+    // The calendar opens on 1 January thirty years ago; accepting it picks that date.
+    await tapText(tester, find.byWidgetPredicate((w) => w is Text && w.data?.toLowerCase() == 'aceptar'));
     await type(tester, 'Contraseña', password);
     await type(tester, 'Confirmar', password);
     await tapText(tester, find.byType(CheckboxListTile).at(0));

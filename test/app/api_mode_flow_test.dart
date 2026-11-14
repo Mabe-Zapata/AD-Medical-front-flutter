@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:medicalbooking_portal/app/app.dart';
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
 
@@ -146,7 +147,7 @@ void main() {
     },
   );
   testWidgets(
-    'API mode: the sign-up sends only the fields the backend accepts and asks to check the email',
+    'API mode: the sign-up sends only the fields the backend accepts (including sex and birth date) and asks to check the email',
     (tester) async {
       final original = FlutterError.onError;
       FlutterError.onError = (details) {
@@ -194,6 +195,14 @@ void main() {
           entry.value,
         );
       }
+      await tester.ensureVisible(find.text('Femenino'));
+      await tester.tap(find.text('Femenino'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('birth-date')));
+      await tester.tap(find.byKey(const ValueKey('birth-date')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byWidgetPredicate((w) => w is Text && w.data?.toLowerCase() == 'aceptar'));
+      await tester.pumpAndSettle();
       for (final index in [0, 1]) {
         await tester.ensureVisible(find.byType(CheckboxListTile).at(index));
         await tester.tap(find.byType(CheckboxListTile).at(index));
@@ -213,6 +222,8 @@ void main() {
         'password': 'una-clave-larga-1',
         'first_name': 'Ana',
         'last_name': 'Pérez',
+        'sexo': 'F',
+        'fecha_nacimiento': isoDate(DateTime(DateTime.now().year - 30, 1, 1)),
       });
     },
   );
