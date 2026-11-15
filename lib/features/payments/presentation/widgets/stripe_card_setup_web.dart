@@ -4,10 +4,8 @@ import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
-import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/card_setup.dart';
-import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
-import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/widgets/stripe_card_setup_controller.dart';
 import 'package:web/web.dart' as web;
 
 /// Stripe.js is always loaded from Stripe's own origin, as Stripe requires; it is never bundled.
@@ -43,24 +41,34 @@ Future<void> _loadStripeJs() async {
   await Future.any<Object?>([loaded, failed]);
 }
 
-/// Stripe's card form in the browser, to save a card without paying. The card is saved as reusable
-/// (`allow_redisplay: always`) only when [consented] is true: the patient ticked the box that says so.
+/// Stripe's card form in the browser, to save a card without paying. It only mounts the form; pressing save is the
+/// dialog's footer button, through [controller]. The card is saved as reusable (`allow_redisplay: always`) only when
+/// [consented] is true.
 Widget stripeCardSetup(
   BuildContext context, {
   required CardSetup setup,
+  required StripeCardSetupController controller,
   required bool consented,
   required VoidCallback onSaved,
 }) => _StripeCardSetup(
   key: ValueKey(setup.clientSecret),
   setup: setup,
+  controller: controller,
   consented: consented,
   onSaved: onSaved,
 );
 
 class _StripeCardSetup extends StatefulWidget {
-  const _StripeCardSetup({super.key, required this.setup, required this.consented, required this.onSaved});
+  const _StripeCardSetup({
+    super.key,
+    required this.setup,
+    required this.controller,
+    required this.consented,
+    required this.onSaved,
+  });
 
   final CardSetup setup;
+  final StripeCardSetupController controller;
   final bool consented;
   final VoidCallback onSaved;
 
@@ -73,20 +81,24 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
 
   late final String _viewType = 'stripe-card-setup-${_next++}';
   late final web.HTMLDivElement _host = (web.document.createElement('div') as web.HTMLDivElement)
-    ..style.width = '100%';
+    ..style.width = '100%'
+    ..style.height = '100%';
   _Stripe? _client;
   JSObject? _elements;
-  bool _ready = false;
-  bool _failed = false;
-  bool _busy = false;
-  String? _error;
   bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int _) => _host);
+    widget.controller.attach(_save);
     unawaited(_mount());
+  }
+
+  @override
+  void didUpdateWidget(covariant _StripeCardSetup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) widget.controller.attach(_save);
   }
 
   Future<void> _mount() async {
@@ -105,10 +117,16 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
       elements.create('payment'.toJS).mount(_host);
       _client = client;
       _elements = elements;
-      if (mounted) setState(() => _ready = true);
+      widget.controller.update(ready: true, busy: false);
     } on Object catch (error) {
       web.console.error('Stripe card setup failed: $error'.toJS);
-      if (!_disposed && mounted) setState(() => _failed = true);
+      if (!_disposed) {
+        widget.controller.update(
+          ready: false,
+          busy: false,
+          error: 'No pudimos cargar el formulario de Stripe, así que no se guardó nada. Revisa tu conexión e inténtalo de nuevo.',
+        );
+      }
     }
   }
 
@@ -116,10 +134,7 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
     final client = _client;
     final elements = _elements;
     if (client == null || elements == null || !widget.consented) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    widget.controller.update(ready: true, busy: true);
     try {
       final paymentMethodData = JSObject()..setProperty('allow_redisplay'.toJS, 'always'.toJS);
       final confirmParams = JSObject()
@@ -132,15 +147,22 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
       final result = await client.confirmSetup(options).toDart;
       final failure = result?.getProperty<JSObject?>('error'.toJS);
       if (failure != null) {
-        if (mounted) setState(() => _error = 'No pudimos guardar la tarjeta. Revísala e intenta de nuevo.');
+        widget.controller.update(
+          ready: true,
+          busy: false,
+          error: 'No pudimos guardar la tarjeta. Revísala e intenta de nuevo.',
+        );
         return;
       }
+      widget.controller.update(ready: true, busy: false);
       if (!_disposed) widget.onSaved();
     } on Object catch (error) {
       web.console.error('Stripe card setup confirm failed: $error'.toJS);
-      if (mounted) setState(() => _error = 'No pudimos guardar la tarjeta. Intenta de nuevo en unos minutos.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      widget.controller.update(
+        ready: true,
+        busy: false,
+        error: 'No pudimos guardar la tarjeta. Intenta de nuevo en unos minutos.',
+      );
     }
   }
 
@@ -151,28 +173,9 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_failed) {
-      return const InfoBanner(
-        message: 'No pudimos cargar el formulario de Stripe, así que no se guardó nada. Revisa tu conexión e inténtalo de nuevo.',
-        color: Tokens.warning,
-        icon: Icons.cloud_off_outlined,
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(height: 260, child: HtmlElementView(viewType: _viewType)),
-        if (_error != null) ...[
-          const SizedBox(height: 12),
-          InfoBanner(message: _error!, color: Tokens.danger, icon: Icons.error_outline),
-        ],
-        const SizedBox(height: 16),
-        GradientButton(
-          label: _busy ? 'Guardando…' : 'Guardar tarjeta',
-          onPressed: !_ready || !widget.consented || _busy ? null : _save,
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => SizedBox(
+    width: 460,
+    height: 300,
+    child: HtmlElementView(viewType: _viewType),
+  );
 }

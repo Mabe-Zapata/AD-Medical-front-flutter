@@ -51,5 +51,7 @@ void main() {
     expect(find.textContaining('Autorizo guardar esta tarjeta'), findsOneWidget);
     expect(tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value, isFalse);
     expect(find.textContaining('No se guardó nada'), findsOneWidget);
+    final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Guardar tarjeta'));
+    expect(save.onPressed, isNull);
   });
 }
