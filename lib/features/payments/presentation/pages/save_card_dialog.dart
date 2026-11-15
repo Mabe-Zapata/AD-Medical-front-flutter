@@ -23,7 +23,8 @@ class SaveCardDialog extends StatefulWidget {
 }
 
 class _SaveCardDialogState extends State<SaveCardDialog> {
-  static const _width = 460.0;
+  /// The narrowest the form can be drawn: below this the body scrolls sideways instead of squeezing the fields.
+  static const _minContentWidth = 460.0;
 
   late final Future<CardSetup> _setup = widget.start();
   final _card = StripeCardSetupController();
@@ -41,50 +42,75 @@ class _SaveCardDialogState extends State<SaveCardDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Fits the window: the body gets what is left under the title and the footer, never less than a usable height.
-    final available = MediaQuery.sizeOf(context).height - 220;
-    final bodyHeight = available.clamp(280.0, 520.0).toDouble();
+    final size = MediaQuery.sizeOf(context);
+    // A fixed frame: header, a body that scrolls both ways, and a footer whose buttons are always on screen.
+    final width = (size.width - 40).clamp(320.0, 520.0).toDouble();
+    final height = (size.height - 60).clamp(380.0, 680.0).toDouble();
+    final contentWidth = (width - 48) < _minContentWidth ? _minContentWidth : width - 48;
 
-    return AlertDialog(
-      title: const Text('Guardar una tarjeta'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
-      content: SizedBox(
-        width: _width,
-        height: bodyHeight,
-        child: Scrollbar(
-          controller: _vertical,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _vertical,
-            child: Scrollbar(
-              controller: _horizontal,
-              thumbVisibility: true,
-              notificationPredicate: (notification) => notification.depth == 1,
-              child: SingleChildScrollView(
-                controller: _horizontal,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: _width,
-                  child: ListenableBuilder(listenable: _card, builder: (context, _) => _body()),
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Text(
+                'Guardar una tarjeta',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Tokens.slate900),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Scrollbar(
+                  controller: _vertical,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _vertical,
+                    child: Scrollbar(
+                      controller: _horizontal,
+                      thumbVisibility: true,
+                      notificationPredicate: (notification) => notification.depth == 1,
+                      child: SingleChildScrollView(
+                        controller: _horizontal,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: contentWidth,
+                          child: ListenableBuilder(listenable: _card, builder: (context, _) => _body()),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _card.busy ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Cerrar'),
+                  ),
+                  const SizedBox(width: 8),
+                  ListenableBuilder(
+                    listenable: _card,
+                    builder: (context, _) => FilledButton(
+                      onPressed: _consented && _card.canSave ? _card.save : null,
+                      child: Text(_card.busy ? 'Guardando…' : 'Guardar tarjeta'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _card.busy ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cerrar'),
-        ),
-        ListenableBuilder(
-          listenable: _card,
-          builder: (context, _) => FilledButton(
-            onPressed: _consented && _card.canSave ? _card.save : null,
-            child: Text(_card.busy ? 'Guardando…' : 'Guardar tarjeta'),
-          ),
-        ),
-      ],
     );
   }
 
@@ -128,6 +154,7 @@ class _SaveCardDialogState extends State<SaveCardDialog> {
             const SizedBox(height: 12),
             ErrorBanner(error: ErrorView(_card.error!)),
           ],
+          const SizedBox(height: 16),
         ],
       );
     },
