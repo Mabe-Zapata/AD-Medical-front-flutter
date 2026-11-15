@@ -208,6 +208,11 @@ void main() {
           entry.value,
         );
       }
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cédula').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Número de documento'), '1712345678');
       await tester.ensureVisible(find.text('Femenino'));
       await tester.tap(find.text('Femenino'));
       await tester.pumpAndSettle();
@@ -235,6 +240,8 @@ void main() {
         'password': 'una-clave-larga-1',
         'first_name': 'Ana',
         'last_name': 'Pérez',
+        'tipo_documento': 'CEDULA',
+        'numero_documento': '1712345678',
         'sexo': 'F',
         'fecha_nacimiento': isoDate(DateTime(DateTime.now().year - 30, 1, 1)),
       });

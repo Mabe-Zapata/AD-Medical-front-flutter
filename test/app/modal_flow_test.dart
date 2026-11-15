@@ -54,6 +54,9 @@ void main() {
     await type(tester, 'Nombres', 'Ana');
     await type(tester, 'Apellidos', 'Pérez');
     await type(tester, 'Correo electrónico', 'ana@demo.test');
+    await tapText(tester, find.byType(DropdownButtonFormField<String>));
+    await tapText(tester, find.text('Cédula').last);
+    await type(tester, 'Número de documento', '1712345678');
     await tapText(tester, find.text('Femenino'));
     await tapText(tester, find.byKey(const ValueKey('birth-date')));
     // The calendar opens on 1 January thirty years ago; accepting it picks that date.
