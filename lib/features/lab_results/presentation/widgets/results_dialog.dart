@@ -10,7 +10,7 @@ void showResultsDialog(
   BuildContext context, {
   required LabOrder order,
   required String patientName,
-  required Future<void> Function() onDownloadPdf,
+  required Future<void> Function() onOpenPdf,
 }) {
   showDialog<void>(
     context: context,
@@ -70,9 +70,9 @@ void showResultsDialog(
                 spacing: 12,
                 children: [
                   FilledButton.icon(
-                    onPressed: () => onDownloadPdf(),
+                    onPressed: () => onOpenPdf(),
                     icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                    label: const Text('Descargar PDF'),
+                    label: const Text('Ver PDF'),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
