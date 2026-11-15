@@ -49,7 +49,7 @@ void main() {
     expect(find.textContaining('Tarjeta de ejemplo'), findsOneWidget);
     // A card is saved by paying with the consent box ticked, so there is no "add" button.
     expect(find.text('Agregar tarjeta'), findsNothing);
-    expect(find.textContaining('Puedes guardar una tarjeta al pagar una cita'), findsOneWidget);
+    expect(find.textContaining('Puedes guardar una tarjeta aquí o al pagar una cita'), findsOneWidget);
 
     // Removing it asks first, and then the screen says there is none.
     await tester.tap(find.text('Quitar tarjeta'));

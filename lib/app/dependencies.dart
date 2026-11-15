@@ -40,6 +40,7 @@ import 'package:medicalbooking_portal/features/payments/domain/usecases/get_chec
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/start_card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/mock_embedded_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/stripe_embedded_checkout.dart';
@@ -70,6 +71,7 @@ class AppDependencies {
     required this.openPage,
     required this.embeddedCheckout,
     required this.removeSavedCard,
+    required this.startCardSetup,
     this.payWithCard,
     this.demoCredentials,
   });
@@ -101,6 +103,7 @@ class AppDependencies {
       requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
+      startCardSetup: StartCardSetup(savedCards),
       openPage: (_) {},
       embeddedCheckout: mockEmbeddedCheckout,
       payWithCard: payments.payWithCard,
@@ -161,6 +164,7 @@ class AppDependencies {
       requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
+      startCardSetup: StartCardSetup(savedCards),
       openPage: openPage ?? openExternalPage,
       // Stripe's own page in the browser; anywhere else the portal says so instead of pretending to charge.
       embeddedCheckout: embeddedCheckout ?? stripeEmbeddedCheckout,
@@ -206,6 +210,9 @@ class AppDependencies {
   final EmbeddedCheckoutBuilder embeddedCheckout;
 
   final RemoveSavedCard removeSavedCard;
+
+  /// Starts saving a card without paying (the browser shows Stripe's card form).
+  final StartCardSetup startCardSetup;
 
   /// Demo only: plays the backend's part when the simulated card form is submitted. The real form will send
   /// the payment itself.

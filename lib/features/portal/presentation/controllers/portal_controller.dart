@@ -9,7 +9,9 @@ import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_m
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/refund.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/start_card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/policies/refund_failure.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
@@ -29,6 +31,7 @@ class PortalController extends ChangeNotifier {
     required this._requestRefund,
     required this._getSavedCard,
     required this._removeSavedCard,
+    required this._startCardSetup,
     required this._session,
   });
 
@@ -51,6 +54,7 @@ class PortalController extends ChangeNotifier {
   final RequestRefund _requestRefund;
   final GetSavedCard _getSavedCard;
   final RemoveSavedCard _removeSavedCard;
+  final StartCardSetup _startCardSetup;
   final SessionController _session;
 
   List<Appointment> _appointments = const [];
@@ -195,6 +199,18 @@ class PortalController extends ChangeNotifier {
           : 'Pedimos tu reembolso. Te lo acreditaremos cuando el banco lo procese.';
     }, describe: (error) => error is AppError ? ErrorView(refundFailureMessage(error)) : describeError(error));
   }
+
+  /// Asks the backend for a card form to save a card without paying. Throws `AppError` when it cannot.
+  Future<CardSetup> startCardSetup() {
+    final patient = _session.patient;
+    if (patient == null) throw const AppError(ErrorKind.unauthenticated, 'no signed-in patient');
+    return _startCardSetup(patient.id);
+  }
+
+  /// The card was stored by Stripe: reload the cards so the new one shows up.
+  Future<void> cardSaved() => _run(() async {
+    _notice = 'Tarjeta guardada. La puedes usar al pagar tus citas.';
+  });
 
   Future<void> removeCard() async {
     final patient = _session.patient;

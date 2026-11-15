@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_dialog.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/pages/save_card_dialog.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/pages/refund_dialog.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/payment_methods_section.dart';
@@ -82,6 +83,7 @@ class _PortalPageState extends State<PortalPage> {
       requestRefund: deps.requestRefund,
       getSavedCard: deps.getSavedCard,
       removeSavedCard: deps.removeSavedCard,
+      startCardSetup: deps.startCardSetup,
       session: deps.session,
     )..load();
     final patient = deps.session.patient;
@@ -149,6 +151,14 @@ class _PortalPageState extends State<PortalPage> {
       ),
     );
     if (confirmed == true) await _controller.removeCard();
+  }
+
+  Future<void> _addCard() async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => SaveCardDialog(start: _controller.startCardSetup),
+    );
+    if (saved == true) await _controller.cardSaved();
   }
 
   Future<void> _confirmCancel(Appointment appointment) async {
@@ -346,6 +356,7 @@ class _PortalPageState extends State<PortalPage> {
           holderName: patient.displayName,
           demo: deps.isDemo,
           onRemove: _controller.working ? null : _confirmRemoveCard,
+          onAddCard: deps.isDemo || _controller.working ? null : _addCard,
         )
       else
         ..._results(patient.displayName, isDemo: deps.isDemo),

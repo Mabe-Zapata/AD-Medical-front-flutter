@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/features/payments/domain/entities/card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/repositories/saved_card_repository.dart';
 import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
@@ -12,6 +13,13 @@ class DemoSavedCardRepository implements SavedCardRepository {
   Future<SavedCard?> defaultCard(String patientId) async {
     await _db.simulateLatency();
     return _db.savedCardOf(patientId);
+  }
+
+  /// The demo does not take card details: the portal hides the button in demo mode.
+  @override
+  Future<CardSetup> startSetup(String patientId) async {
+    await _db.simulateLatency();
+    return const CardSetup(clientSecret: 'seti_demo_secret', publishableKey: 'pk_test_demo');
   }
 
   @override

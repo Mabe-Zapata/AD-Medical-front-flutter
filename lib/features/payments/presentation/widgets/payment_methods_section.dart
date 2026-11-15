@@ -14,6 +14,7 @@ class PaymentMethodsSection extends StatelessWidget {
     required this.holderName,
     required this.demo,
     this.onRemove,
+    this.onAddCard,
   });
 
   final SavedCard? card;
@@ -24,6 +25,9 @@ class PaymentMethodsSection extends StatelessWidget {
 
   /// Asks to remove the saved card; null while another action is running.
   final VoidCallback? onRemove;
+
+  /// Opens the form that saves another card without paying; null hides the button (the demo).
+  final VoidCallback? onAddCard;
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +90,15 @@ class PaymentMethodsSection extends StatelessWidget {
               style: OutlinedButton.styleFrom(foregroundColor: Tokens.danger, side: const BorderSide(color: Tokens.danger)),
             ),
           if (saved != null) const SizedBox(height: 8),
+          if (onAddCard != null)
+            OutlinedButton.icon(
+              onPressed: onAddCard,
+              icon: const Icon(Icons.add_card_outlined, size: 18),
+              label: Text(saved == null ? 'Guardar una tarjeta' : 'Guardar otra tarjeta'),
+            ),
+          if (onAddCard != null) const SizedBox(height: 8),
           const Text(
-            'Puedes guardar una tarjeta al pagar una cita, con la casilla "Guardar esta tarjeta". Guardar una nueva reemplaza la anterior.',
+            'Puedes guardar una tarjeta aquí o al pagar una cita, marcando la casilla para guardarla.',
             style: TextStyle(fontSize: 12, color: Tokens.muted, height: 1.4),
           ),
           const SizedBox(height: 16),
