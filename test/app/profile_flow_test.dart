@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:medicalbooking_portal/app/app.dart';
-import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
 
@@ -58,13 +57,6 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// Sex and birth date, picked the way a person does: a chip and the calendar (it opens on 1 January thirty years ago).
-  Future<void> pickPersonalData(WidgetTester tester) async {
-    await tapText(tester, find.text('Femenino'));
-    await tapText(tester, find.byKey(const ValueKey('birth-date')));
-    await tapText(tester, find.byWidgetPredicate((w) => w is Text && w.data?.toLowerCase() == 'aceptar'));
-  }
-
   testWidgets(
     'the portal invites the patient to complete the profile, and shows it once saved',
     (tester) async {
@@ -77,8 +69,7 @@ void main() {
         find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
         '2850',
       );
-      await pickPersonalData(tester);
-      await tapText(tester, find.text('No fumo'));
+        await tapText(tester, find.text('No fumo'));
       await tapText(tester, find.text('Guardar perfil'));
       expect(find.text('Perfil guardado'), findsOneWidget);
 
@@ -100,9 +91,7 @@ void main() {
     await tapText(tester, find.text('Guardar perfil'));
 
     expect(find.text('Escribe un número entre 0 y 8848.'), findsOneWidget);
-    // Sex and smoking are both unanswered.
-    expect(find.text('Elige una opción.'), findsNWidgets(2));
-    expect(find.text('Elige una fecha de nacimiento válida.'), findsOneWidget);
+    expect(find.text('Elige una opción.'), findsOneWidget);
     expect(find.text('Perfil guardado'), findsNothing);
   });
 
@@ -114,7 +103,6 @@ void main() {
       find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
       '100',
     );
-    await pickPersonalData(tester);
     await tapText(tester, find.text('Fumo'));
 
     await tapText(tester, find.text('Guardar perfil'));
@@ -141,7 +129,6 @@ void main() {
       find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
       '2850',
     );
-    await pickPersonalData(tester);
     await tapText(tester, find.text('No fumo'));
     await tapText(tester, find.text('Guardar perfil'));
     await tapText(tester, find.text('Volver a mi portal'));
@@ -226,8 +213,7 @@ void main() {
         find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
         '2850',
       );
-      await pickPersonalData(tester);
-      await tapText(tester, find.text('No fumo'));
+        await tapText(tester, find.text('No fumo'));
       await tapText(tester, find.text('Guardar perfil'));
 
       expect(find.textContaining('Revisa la altitud'), findsOneWidget);
@@ -241,8 +227,8 @@ void main() {
         'altitud_residencia_m': 2850,
         'fumador': false,
         'cigarrillos_dia': null,
-        'sexo': 'F',
-        'fecha_nacimiento': isoDate(DateTime(DateTime.now().year - 30, 1, 1)),
+        'sexo': null,
+        'fecha_nacimiento': null,
       });
     },
   );

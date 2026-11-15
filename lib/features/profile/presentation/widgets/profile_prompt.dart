@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
-import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/features/profile/domain/entities/clinical_profile.dart';
 
 /// Presentational: invites the patient to declare their clinical profile, or summarizes what they declared.
@@ -46,12 +45,12 @@ class ProfilePrompt extends StatelessWidget {
                   child: declared == null
                       ? const _Message(
                           title: 'Completa tu perfil clínico',
-                          text: 'Indica tu sexo, tu fecha de nacimiento, tu altitud de residencia y si fumas: se usan para interpretar tus análisis.',
+                          text: 'Indica tu altitud de residencia y si fumas: se usan para interpretar tu hemoglobina.',
                         )
                       : _Message(
                           title: 'Perfil clínico completo',
                           text:
-                              '${declared.sex.label} · nacimiento ${birthDateLabel(declared.birthDate)} · ${declared.altitudeM} m de altitud · ${declared.smoker ? 'fumas ${declared.cigarettesPerDay ?? 0} al día' : 'no fumas'}',
+                              '${declared.altitudeM} m de altitud · ${declared.smoker ? 'fumas ${declared.cigarettesPerDay ?? 0} al día' : 'no fumas'}',
                         ),
                 ),
               ],

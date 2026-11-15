@@ -24,7 +24,6 @@ class _Recording implements ClinicalProfileRepository {
   Future<ClinicalProfile?> read() async => saved.isEmpty ? null : saved.last;
 }
 
-final _today = DateTime(2026, 11, 14);
 final _born = DateTime(1992, 5, 14);
 
 ClinicalProfile _profile({int altitude = 2850, bool smoker = false, int? cigarettes}) => ClinicalProfile(
@@ -43,34 +42,12 @@ ApiClient _apiReplying(String body, {int status = 200}) => ApiClient(
 
 void main() {
   group('profileProblems', () {
-    List<ProfileProblem> problems({int? altitudeM, bool? smoker, int? cigarettes, BiologicalSex? sex = BiologicalSex.female, DateTime? birthDate}) =>
-        profileProblems(
-          altitudeM: altitudeM,
-          smoker: smoker,
-          cigarettes: cigarettes,
-          sex: sex,
-          birthDate: birthDate ?? _born,
-          now: _today,
-        );
+    List<ProfileProblem> problems({int? altitudeM, bool? smoker, int? cigarettes}) =>
+        profileProblems(altitudeM: altitudeM, smoker: smoker, cigarettes: cigarettes);
 
     test('accepts a non-smoker and a smoker with their count', () {
       expect(problems(altitudeM: 2850, smoker: false), isEmpty);
       expect(problems(altitudeM: 0, smoker: true, cigarettes: 10), isEmpty);
-    });
-
-    test('asks for sex and birth date too', () {
-      expect(problems(altitudeM: 2850, smoker: false, sex: null), [ProfileProblem.sex]);
-      expect(
-        profileProblems(altitudeM: 2850, smoker: false, sex: BiologicalSex.male, now: _today),
-        [ProfileProblem.birthDate],
-      );
-    });
-
-    test('refuses a birth date in the future or more than 120 years ago', () {
-      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(2026, 11, 15)), [ProfileProblem.birthDate]);
-      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(1906, 11, 13)), [ProfileProblem.birthDate]);
-      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(2026, 11, 14)), isEmpty);
-      expect(problems(altitudeM: 2850, smoker: false, birthDate: DateTime(1906, 11, 14)), isEmpty);
     });
 
     test('asks for everything the backend requires', () {
@@ -120,11 +97,12 @@ void main() {
       expect(profile.birthDate, DateTime(1992, 5, 14));
     });
 
-    test('a profile with altitude and smoking but no sex or birth date reads as not complete', () async {
-      // What an older backend (or an account that never declared them) answers.
+    test('altitude and smoking are enough: sex and birth date from the sign-up are not asked again', () async {
       final api = _apiReplying('{"altitud_residencia_m":2850,"fumador":false,"cigarrillos_dia":null,"sexo":null,"fecha_nacimiento":null}');
 
-      expect(await HttpClinicalProfileRepository(api).read(), isNull);
+      final profile = await HttpClinicalProfileRepository(api).read();
+
+      expect([profile!.altitudeM, profile.smoker, profile.sex, profile.birthDate], [2850, false, null, null]);
     });
 
     test('an undeclared profile (nulls) reads as not complete', () async {

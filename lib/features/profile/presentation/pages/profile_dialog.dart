@@ -10,12 +10,10 @@ import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.
 import 'package:medicalbooking_portal/shared/presentation/atoms/section_label.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
-import 'package:medicalbooking_portal/shared/presentation/molecules/personal_data_fields.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/two_panel_modal.dart';
 
-/// Container: the patient's clinical profile (sex, birth date, altitude of residence and smoking). Altitude and
-/// smoking adjust how the hemoglobin is interpreted; sex and age pick the reference ranges. Only the patient can
-/// write it.
+/// Container: the patient's clinical profile: altitude of residence and smoking, which adjust how the hemoglobin is
+/// interpreted. Only the patient can write it.
 class ProfileDialog extends StatefulWidget {
   const ProfileDialog({super.key});
 
@@ -67,8 +65,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
         altitudeM: _altitudeValue,
         smoker: _smoker,
         cigarettes: _cigarettesValue,
-        sex: _sex,
-        birthDate: _birthDate,
       ).toSet();
 
   String? _fieldError(ProfileProblem problem, String message) =>
@@ -90,8 +86,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
         ClinicalProfile(
           altitudeM: _altitudeValue!,
           smoker: _smoker!,
-          sex: _sex!,
-          birthDate: _birthDate!,
+          sex: _sex,
+          birthDate: _birthDate,
           cigarettesPerDay: _smoker! ? _cigarettesValue : null,
         ),
       );
@@ -102,7 +98,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           () => _error = describeError(
             error,
             overrides: const {
-              ErrorKind.validation: 'Revisa la altitud (0 a 8848 m), los cigarrillos por día, el sexo y la fecha de nacimiento.',
+              ErrorKind.validation: 'Revisa la altitud (0 a 8848 m) y los cigarrillos por día.',
               ErrorKind.forbidden: 'Solo una cuenta de paciente puede guardar su perfil clínico.',
             },
           ),
@@ -119,7 +115,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
     headline: 'Para interpretar tus resultados con tus datos.',
     bullets: const [
       'Tu altitud de residencia y si fumas ajustan cómo se interpreta tu hemoglobina (OMS 2024).',
-      'Tu sexo y tu edad definen los rangos de referencia que se aplican a tus análisis.',
       'Solo tú puedes escribir estos datos.',
       'Puedes actualizarlos cuando cambien.',
     ],
@@ -150,18 +145,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
           helperMaxLines: 2,
           errorText: _fieldError(ProfileProblem.altitude, 'Escribe un número entre 0 y $maxAltitudeM.'),
         ),
-      ),
-      const SizedBox(height: 20),
-      SexChoice(
-        value: _sex,
-        errorText: _fieldError(ProfileProblem.sex, 'Elige una opción.'),
-        onChanged: (value) => setState(() => _sex = value),
-      ),
-      const SizedBox(height: 20),
-      BirthDateField(
-        value: _birthDate,
-        errorText: _fieldError(ProfileProblem.birthDate, 'Elige una fecha de nacimiento válida.'),
-        onChanged: (value) => setState(() => _birthDate = value),
       ),
       const SizedBox(height: 20),
       const Text('¿Fumas?', style: TextStyle(fontWeight: FontWeight.w700, color: Tokens.slate900)),

@@ -49,7 +49,9 @@ class HttpAuthRepository implements AuthRepository {
     final json = await _api.get('/me', bearer: token) as Map<String, dynamic>;
     return Patient(
       id: json['id'] as String,
-      email: email,
+      email: (json['correo'] as String?) ?? email,
+      firstName: json['nombre'] as String?,
+      lastName: json['apellido'] as String?,
       roles: List<String>.from(json['roles'] as List),
       permissions: List<String>.from(json['permissions'] as List),
     );
