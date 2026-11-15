@@ -84,6 +84,8 @@ HttpLabResultsRepository _repo({
 );
 
 void main() {
+  _pdfTests();
+
   test(
     'lists the patient\'s orders and joins each one with its results',
     () async {
@@ -141,5 +143,33 @@ void main() {
 
   test('no orders is an empty list', () async {
     expect(await _repo(listed: const []).ordersOf('u1'), isEmpty);
+  });
+}
+
+void _pdfTests() {
+  test('the results PDF of an order is downloaded with the bearer token and its bytes kept', () async {
+    late Uri asked;
+    late String? authorization;
+    final repository = HttpLabResultsRepository(
+      ApiClient(
+        baseUrl: 'http://api.test/api/v1',
+        token: () => 'jwt',
+        client: MockClient((request) async {
+          asked = request.url;
+          authorization = request.headers['Authorization'];
+          return http.Response.bytes(
+            utf8.encode('%PDF-1.4 sample'),
+            200,
+            headers: {'content-type': 'application/pdf'},
+          );
+        }),
+      ),
+    );
+
+    final bytes = await repository.resultsReport(_orderId);
+
+    expect(asked.path, '/api/v1/lab/orders/$_orderId/report.pdf');
+    expect(authorization, 'Bearer jwt');
+    expect(utf8.decode(bytes), startsWith('%PDF-'));
   });
 }
