@@ -80,9 +80,12 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
   static var _next = 0;
 
   late final String _viewType = 'stripe-card-setup-${_next++}';
+  // Stripe's frame is taller than its box (about 395px). It is clipped here so it never paints over the dialog footer.
   late final web.HTMLDivElement _host = (web.document.createElement('div') as web.HTMLDivElement)
     ..style.width = '100%'
-    ..style.height = '100%';
+    ..style.height = '100%'
+    ..style.position = 'relative'
+    ..style.overflow = 'hidden';
   _Stripe? _client;
   JSObject? _elements;
   bool _disposed = false;
@@ -175,7 +178,7 @@ class _StripeCardSetupState extends State<_StripeCardSetup> {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 460,
-    height: 300,
+    height: 400,
     child: HtmlElementView(viewType: _viewType),
   );
 }

@@ -45,7 +45,8 @@ class _SaveCardDialogState extends State<SaveCardDialog> {
     final size = MediaQuery.sizeOf(context);
     // A fixed frame: header, a body that scrolls both ways, and a footer whose buttons are always on screen.
     final width = (size.width - 40).clamp(320.0, 520.0).toDouble();
-    final height = (size.height - 60).clamp(380.0, 680.0).toDouble();
+    // Tall enough for the whole Stripe form in a normal window; a shorter window scrolls the body instead.
+    final height = (size.height - 24).clamp(420.0, 700.0).toDouble();
     final contentWidth = (width - 48) < _minContentWidth ? _minContentWidth : width - 48;
 
     return Dialog(
@@ -90,14 +91,16 @@ class _SaveCardDialogState extends State<SaveCardDialog> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   TextButton(
                     onPressed: _card.busy ? null : () => Navigator.of(context).pop(),
                     child: const Text('Cerrar'),
                   ),
-                  const SizedBox(width: 8),
                   ListenableBuilder(
                     listenable: _card,
                     builder: (context, _) => FilledButton(
