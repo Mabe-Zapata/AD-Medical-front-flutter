@@ -16,10 +16,10 @@ import 'package:medicalbooking_portal/features/booking/domain/entities/appointme
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/next_appointment_card.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/summary_tiles.dart';
-import 'package:medicalbooking_portal/core/files/save_download.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
+import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_pdf_preview.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/widgets/profile_prompt.dart';
@@ -111,13 +111,19 @@ class _PortalPageState extends State<PortalPage> {
     super.dispose();
   }
 
-  /// Saves the results of [order] as a PDF. A failure says why, in the same words as the rest of the portal.
-  Future<void> _downloadResults(LabOrder order) async {
+  /// Fetches the results of [order] as a PDF and shows it in a preview, where it can also be downloaded.
+  Future<void> _openResultsPdf(LabOrder order) async {
     final deps = AppScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final fileName = 'resultados-${order.id.substring(0, 8)}.pdf';
     try {
       final bytes = await deps.downloadResultsReport(order.id);
-      await saveDownload(bytes, 'resultados-${order.id.substring(0, 8)}.pdf');
+      if (!mounted) return;
+      await showResultsPdfPreview(
+        context,
+        bytes: bytes,
+        fileName: fileName,
+      );
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(describeError(error).message)));
     }
@@ -469,7 +475,7 @@ class _PortalPageState extends State<PortalPage> {
             context,
             order: order,
             patientName: patientName,
-            onDownloadPdf: () => _downloadResults(order),
+            onOpenPdf: () => _openResultsPdf(order),
           ),
         ),
         const SizedBox(height: 14),
