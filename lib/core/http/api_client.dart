@@ -50,6 +50,17 @@ class ApiClient {
     return query == null ? absolute : absolute.replace(queryParameters: query);
   }
 
+  /// A binary body, such as a PDF. Errors are mapped like the JSON calls.
+  Future<List<int>> getBytes(String path, {String? bearer}) async {
+    final response = await _request(
+      'GET',
+      path,
+      accept: 'application/pdf',
+      bearer: bearer,
+    );
+    return response.bodyBytes;
+  }
+
   Future<Object?> _send(
     String method,
     String path, {
@@ -59,8 +70,30 @@ class ApiClient {
     bool authenticated = true,
     String? bearer,
   }) async {
+    final response = await _request(
+      method,
+      path,
+      query: query,
+      body: body,
+      headers: headers,
+      authenticated: authenticated,
+      bearer: bearer,
+    );
+    return response.bodyBytes.isEmpty ? null : jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
+  Future<http.Response> _request(
+    String method,
+    String path, {
+    Map<String, String>? query,
+    Object? body,
+    Map<String, String>? headers,
+    bool authenticated = true,
+    String? bearer,
+    String accept = 'application/json',
+  }) async {
     final request = http.Request(method, _uri(path, query));
-    request.headers['Accept'] = 'application/json';
+    request.headers['Accept'] = accept;
     final current = bearer ?? token?.call();
     if (current != null) request.headers['Authorization'] = 'Bearer $current';
     if (headers != null) request.headers.addAll(headers);
@@ -78,9 +111,7 @@ class ApiClient {
       throw AppError(ErrorKind.network, e.message);
     }
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return response.bodyBytes.isEmpty ? null : jsonDecode(utf8.decode(response.bodyBytes));
-    }
+    if (response.statusCode >= 200 && response.statusCode < 300) return response;
     final error = _problem(response, authenticated: authenticated);
     if (response.statusCode == 401 && authenticated && current != null) onUnauthorized?.call();
     throw error;

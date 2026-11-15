@@ -38,6 +38,7 @@ import 'package:medicalbooking_portal/features/payments/data/repositories/http_s
 import 'package:medicalbooking_portal/features/payments/data/storage/payment_trail_store_factory.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
+import 'package:medicalbooking_portal/features/lab_results/domain/usecases/download_results_report.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_latest_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
@@ -68,6 +69,7 @@ class AppDependencies {
     required this.getMyAppointments,
     required this.cancelAppointment,
     required this.getMyLabOrders,
+    required this.downloadResultsReport,
     required this.startCheckout,
     required this.getCheckoutStatus,
     required this.getLatestCheckout,
@@ -105,6 +107,7 @@ class AppDependencies {
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
+      downloadResultsReport: DownloadResultsReport(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
       getLatestCheckout: GetLatestCheckout(payments),
@@ -169,6 +172,7 @@ class AppDependencies {
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
+      downloadResultsReport: DownloadResultsReport(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
       getLatestCheckout: GetLatestCheckout(payments),
@@ -211,6 +215,7 @@ class AppDependencies {
   final GetMyAppointments getMyAppointments;
   final CancelAppointment cancelAppointment;
   final GetMyLabOrders getMyLabOrders;
+  final DownloadResultsReport downloadResultsReport;
   final StartCheckout startCheckout;
   final GetCheckoutStatus getCheckoutStatus;
   final GetLatestCheckout getLatestCheckout;

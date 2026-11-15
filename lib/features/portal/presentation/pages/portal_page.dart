@@ -16,6 +16,8 @@ import 'package:medicalbooking_portal/features/booking/domain/entities/appointme
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/next_appointment_card.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/summary_tiles.dart';
+import 'package:medicalbooking_portal/core/files/save_download.dart';
+import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
@@ -107,6 +109,18 @@ class _PortalPageState extends State<PortalPage> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Saves the results of [order] as a PDF. A failure says why, in the same words as the rest of the portal.
+  Future<void> _downloadResults(LabOrder order) async {
+    final deps = AppScope.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await deps.downloadResultsReport(order.id);
+      await saveDownload(bytes, 'resultados-${order.id.substring(0, 8)}.pdf');
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(describeError(error).message)));
+    }
   }
 
   Future<void> _pay(Appointment appointment) async {
@@ -455,6 +469,7 @@ class _PortalPageState extends State<PortalPage> {
             context,
             order: order,
             patientName: patientName,
+            onDownloadPdf: () => _downloadResults(order),
           ),
         ),
         const SizedBox(height: 14),

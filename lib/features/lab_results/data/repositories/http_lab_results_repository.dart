@@ -5,6 +5,9 @@ import 'package:medicalbooking_portal/features/lab_results/domain/repositories/l
 
 /// Talks to /api/v1/lab/orders. The listing carries no results, so each order is read with its results.
 class HttpLabResultsRepository implements LabResultsRepository {
+  @override
+  Future<List<int>> resultsReport(String orderId) => _api.getBytes('/lab/orders/$orderId/report.pdf');
+
   HttpLabResultsRepository(this._api);
 
   /// How many of the newest orders are opened with their results.
