@@ -67,6 +67,9 @@ class HttpLabResultsRepository implements LabResultsRepository {
               valueNumeric: (r['valor_numerico'] as num?)?.toDouble(),
               valueText: r['valor_texto'] as String?,
               unit: r['unidad'] as String?,
+              referenceMin: (r['referencia_min'] as num?)?.toDouble(),
+              referenceMax: (r['referencia_max'] as num?)?.toDouble(),
+              interpretation: _interpretation(r['interpretacion'] as String?),
               validated: true,
             ),
           );
@@ -112,3 +115,12 @@ class HttpLabResultsRepository implements LabResultsRepository {
     _ => throw AppError(ErrorKind.unknown, 'unknown test status $code'),
   };
 }
+
+/// The classification the API sends (`interpretacion`); null when the result was not evaluated against a reference.
+Interpretation? _interpretation(String? raw) => switch (raw) {
+  'BAJO' => Interpretation.low,
+  'DENTRO_REFERENCIA' => Interpretation.withinReference,
+  'ALTO' => Interpretation.high,
+  'NO_EVALUABLE' => Interpretation.notEvaluable,
+  _ => null,
+};

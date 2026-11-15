@@ -53,6 +53,9 @@ HttpLabResultsRepository _repo({
               'unidad': 'g/dL',
               'valor_numerico': 14.2,
               'valor_texto': null,
+              'referencia_min': 12.0,
+              'referencia_max': 16.0,
+              'interpretacion': 'DENTRO_REFERENCIA',
             },
             {
               'id': 'r2',
@@ -127,6 +130,13 @@ void main() {
     ).ordersOf('u1');
 
     expect(orders.map((o) => o.id), [_otherId]);
+  });
+
+  test('a result carries its validated reference range and classification', () async {
+    final result = (await _repo().ordersOf('u1')).single.details.first.validatedResults.first;
+
+    expect((result.referenceMin, result.referenceMax), (12.0, 16.0));
+    expect(result.interpretation, Interpretation.withinReference);
   });
 
   test('no orders is an empty list', () async {
