@@ -11,8 +11,10 @@ import 'package:medicalbooking_portal/features/booking/presentation/widgets/book
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/booking_summary.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/service_picker.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/widgets/specialty_doctor_picker.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/two_panel_modal.dart';
 
 const _demoFootnote =
@@ -71,11 +73,14 @@ class _BookingFlowState extends State<_BookingFlow> {
     final deps = AppScope.of(context);
     _controller = BookingController(
       getDaySlots: deps.getDaySlots,
+      listSpecialties: deps.listSpecialties,
+      listDoctors: deps.listDoctors,
+      getMyLabOrders: deps.getMyLabOrders,
       reserveAppointment: deps.reserveAppointment,
       session: deps.session,
       services: widget.services,
       initialServiceId: widget.initialServiceId,
-    )..loadSlots();
+    )..loadSpecialties()..loadSlots();
   }
 
   @override
@@ -122,7 +127,42 @@ class _BookingFlowState extends State<_BookingFlow> {
                 const SizedBox(height: 8),
                 ServicePicker(services: c.services, selected: c.service, onSelect: c.selectService),
                 const SizedBox(height: 18),
-                SlotPicker(
+                // Only a consultation has a specialty and a doctor; lab services go straight to the time.
+                if (c.service.needsDoctor) ...[
+                  const _Label('2 · Especialidad'),
+                  const SizedBox(height: 8),
+                  SpecialtyPicker(
+                    specialties: c.specialtyChoices,
+                    selected: c.specialty,
+                    loading: c.loadingSpecialties,
+                    error: c.specialtiesError,
+                    // The consultation's specialty is fixed: its one chip is shown selected and cannot be changed.
+                    onSelect: c.service.needsDoctor ? (_) {} : c.selectSpecialty,
+                    onRetry: c.loadSpecialties,
+                  ),
+                ],
+                if (c.service.needsDoctor && c.specialty != null) ...[
+                  const SizedBox(height: 18),
+                  const _Label('3 · Médico'),
+                  const SizedBox(height: 8),
+                  DoctorPicker(
+                    doctors: c.doctors,
+                    selected: c.doctor,
+                    loading: c.loadingDoctors,
+                    error: c.doctorsError,
+                    onSelect: c.selectDoctor,
+                    onRetry: () => c.selectSpecialty(c.specialty!),
+                  ),
+                ],
+                if (c.service.requiresOrder) ...[
+                  const SizedBox(height: 18),
+                  const _Label('2 · Orden médica'),
+                  const SizedBox(height: 8),
+                  _ReviewOrder(controller: c),
+                ],
+                if (!c.doctorFirst || c.doctor != null) ...[
+                  const SizedBox(height: 18),
+                  SlotPicker(
                   days: c.days,
                   selectedDay: c.day,
                   slots: c.slots,
@@ -133,6 +173,7 @@ class _BookingFlowState extends State<_BookingFlow> {
                   onDay: c.selectDay,
                   onSlot: c.selectSlot,
                 ),
+                ],
                 const SizedBox(height: 18),
                 const _Label('Motivo (opcional)'),
                 const SizedBox(height: 6),
@@ -144,6 +185,7 @@ class _BookingFlowState extends State<_BookingFlow> {
               ] else ...[
                 BookingSummary(
                   service: c.service,
+                  doctorName: c.doctor?.name,
                   slot: c.selectedSlot,
                   conflictedSlot: c.conflictedSlot,
                   error: c.reserveError,
@@ -180,9 +222,10 @@ class _Action extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final slot = controller.selectedSlot;
+    final doctor = controller.doctor;
     final summary = slot == null
-        ? 'Elige un horario para continuar'
-        : '${controller.service.name} · ${dayLabel(branchTime(slot.startUtc))} · ${timeLabel(branchTime(slot.startUtc))}';
+        ? (controller.doctorFirst ? 'Elige un médico y un horario para continuar' : 'Elige un horario para continuar')
+        : '${controller.service.name}${doctor == null ? '' : ' · ${doctor.name}'} · ${dayLabel(branchTime(slot.startUtc))} · ${timeLabel(branchTime(slot.startUtc))}';
     final button = GradientButton(label: 'Continuar', trailing: Icons.arrow_forward, onPressed: slot == null ? null : onContinue);
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -214,6 +257,67 @@ class _Label extends StatelessWidget {
     text.toUpperCase(),
     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Tokens.blueText),
   );
+}
+
+/// A result review: the doctor and the order come from the patient's latest medical order, so nothing is typed.
+class _ReviewOrder extends StatelessWidget {
+  const _ReviewOrder({required this.controller});
+
+  final BookingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.loadingOrder) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(color: Tokens.orange)),
+      );
+    }
+    final error = controller.orderError;
+    if (error != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ErrorBanner(error: error),
+          TextButton.icon(
+            onPressed: () => controller.loadOrder(),
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+    final order = controller.medicalOrder;
+    final doctor = controller.doctor;
+    if (controller.orderMissing || order == null || doctor == null) {
+      return const Text(
+        'Para revisar tus resultados necesitas una orden médica de una consulta. Agenda primero una consulta médica.',
+        style: TextStyle(color: Tokens.muted, height: 1.5),
+      );
+    }
+    final placed = order.orderedAt;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Tokens.orangeTint,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Tokens.orange, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Tokens.slate900)),
+          const SizedBox(height: 2),
+          Text(
+            placed == null
+                ? 'Orden de tu consulta médica'
+                : 'Orden de tu consulta del ${dayLabel(branchTime(placed))}',
+            style: const TextStyle(fontSize: 12, color: Tokens.muted),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Wide screens: eyebrow, title and the two steps, pinned above the scrolling form.

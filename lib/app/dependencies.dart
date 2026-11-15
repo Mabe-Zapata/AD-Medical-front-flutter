@@ -16,6 +16,7 @@ import 'package:medicalbooking_portal/features/booking/data/repositories/demo_ap
 import 'package:medicalbooking_portal/features/booking/data/repositories/http_appointment_repository.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/cancel_appointment.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_day_slots.dart';
+import 'package:medicalbooking_portal/features/booking/domain/usecases/list_doctors.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_my_appointments.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_catalog_repository.dart';
@@ -37,6 +38,7 @@ import 'package:medicalbooking_portal/features/payments/data/repositories/http_s
 import 'package:medicalbooking_portal/features/payments/data/storage/payment_trail_store_factory.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/get_latest_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
@@ -60,12 +62,15 @@ class AppDependencies {
     required this.clinicalProfiles,
     required this.getCatalog,
     required this.getDaySlots,
+    required this.listSpecialties,
+    required this.listDoctors,
     required this.reserveAppointment,
     required this.getMyAppointments,
     required this.cancelAppointment,
     required this.getMyLabOrders,
     required this.startCheckout,
     required this.getCheckoutStatus,
+    required this.getLatestCheckout,
     required this.requestRefund,
     required this.getSavedCard,
     required this.openPage,
@@ -94,12 +99,15 @@ class AppDependencies {
       ),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
       getDaySlots: GetDaySlots(appointments),
+      listSpecialties: ListSpecialties(appointments),
+      listDoctors: ListDoctors(appointments),
       reserveAppointment: ReserveAppointment(appointments),
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
+      getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
@@ -155,12 +163,15 @@ class AppDependencies {
         ),
       ),
       getDaySlots: GetDaySlots(appointments),
+      listSpecialties: ListSpecialties(appointments),
+      listDoctors: ListDoctors(appointments),
       reserveAppointment: ReserveAppointment(appointments),
       getMyAppointments: GetMyAppointments(appointments),
       cancelAppointment: CancelAppointment(appointments),
       getMyLabOrders: GetMyLabOrders(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
+      getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
@@ -194,12 +205,15 @@ class AppDependencies {
   final ClinicalProfileController clinicalProfiles;
   final GetCatalog getCatalog;
   final GetDaySlots getDaySlots;
+  final ListSpecialties listSpecialties;
+  final ListDoctors listDoctors;
   final ReserveAppointment reserveAppointment;
   final GetMyAppointments getMyAppointments;
   final CancelAppointment cancelAppointment;
   final GetMyLabOrders getMyLabOrders;
   final StartCheckout startCheckout;
   final GetCheckoutStatus getCheckoutStatus;
+  final GetLatestCheckout getLatestCheckout;
   final RequestRefund requestRefund;
   final GetSavedCard getSavedCard;
 

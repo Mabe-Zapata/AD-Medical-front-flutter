@@ -74,6 +74,7 @@ class LabOrder {
     required this.status,
     required this.details,
     this.doctorName,
+    this.doctorId,
     this.orderedAt,
     this.notes,
   });
@@ -81,6 +82,9 @@ class LabOrder {
   final String id;
   final String patientId;
   final String? doctorName;
+
+  /// The doctor who placed the order (the medico of the API), used to book a result review with them.
+  final String? doctorId;
   final DateTime? orderedAt;
   final OrderPriority priority;
   final OrderStatus status;

@@ -14,6 +14,7 @@ class BookingSummary extends StatelessWidget {
   const BookingSummary({
     super.key,
     required this.service,
+    this.doctorName,
     required this.slot,
     required this.conflictedSlot,
     required this.error,
@@ -24,6 +25,7 @@ class BookingSummary extends StatelessWidget {
   });
 
   final MedicalService service;
+  final String? doctorName;
   final TimeSlot? slot;
   final TimeSlot? conflictedSlot;
   final ErrorView? error;
@@ -49,6 +51,7 @@ class BookingSummary extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _Row('Servicio', service.name),
+          if (doctorName != null) _Row('Médico', doctorName!),
           _Row('Duración', '${service.durationMin} min'),
           _Row(
             'Cuándo',

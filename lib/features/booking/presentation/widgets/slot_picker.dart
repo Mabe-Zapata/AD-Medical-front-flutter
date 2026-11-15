@@ -40,11 +40,11 @@ class SlotPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Label('2 · Fecha', trailing: _monthLabel(selectedDay)),
+        _Label('Fecha', trailing: _monthLabel(selectedDay)),
         const SizedBox(height: 8),
         _DayStrip(days: days, selected: selectedDay, onDay: onDay),
         const SizedBox(height: 18),
-        _Label('3 · Hora', trailing: loading || error != null ? null : '${free.length} horarios libres'),
+        _Label('Hora', trailing: loading || error != null ? null : '${free.length} horarios libres'),
         const SizedBox(height: 8),
         if (loading)
           const Padding(

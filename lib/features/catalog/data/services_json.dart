@@ -16,6 +16,8 @@ List<MedicalService>? parseServices(String json) {
         durationMin: _field<num>(item, 'durationMin').toInt(),
         basePrice: _field<num>(item, 'basePrice').toDouble(),
         currency: item is Map && item['currency'] is String ? item['currency'] as String : 'USD',
+        specialtyId: item is Map && item['specialtyId'] is num ? (item['specialtyId'] as num).toInt() : null,
+        requiresOrder: item is Map && item['requiresOrder'] == true,
       ),
   ];
 }

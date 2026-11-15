@@ -58,7 +58,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
     await tester.pumpAndSettle();
     await tapText(tester, find.text('Agendar nueva cita'));
-    await tapText(tester, find.byType(ChoiceChip).at(1));
+    await tapText(tester, find.text('Consulta médica'));
+    await tapText(tester, find.widgetWithText(ChoiceChip, 'Medicina general'));
+    await tapText(tester, find.text('Dr. Andrés Mora'));
+    await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
     await tapText(
       tester,
       find
@@ -252,6 +255,10 @@ void main() {
               'roles': ['PACIENTE'],
               'permissions': ['citas.reservar'],
             }, 200);
+          case '/api/v1/specialties':
+            return _json({'items': [{'id': 1, 'nombre': 'Medicina general', 'descripcion': null}]}, 200);
+          case '/api/v1/doctors':
+            return _json({'items': [{'id': 'doc-1', 'nombre': 'Dr. Andrés Mora', 'especialidades': [{'id': 1, 'nombre': 'Medicina general'}], 'duracion_cita_min': 30}]}, 200);
           case '/api/v1/availability':
             final start = DateTime.now()
                 .toUtc()
@@ -359,7 +366,8 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
       await tester.pumpAndSettle();
       await tapText(tester, find.text('Agendar nueva cita'));
-      await tapText(tester, find.byType(ChoiceChip).at(1));
+      // A lab sample has no specialty or doctor: the times come straight after the service.
+      await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
       await tapText(
         tester,
         find
@@ -501,22 +509,23 @@ void main() {
     }
 
     testWidgets(
-      'success says the payment is being confirmed, never that it is paid',
+      'success without a confirmed payment says an error happened and the payment was not completed',
       (tester) async {
         await openAt(tester, '/pago/exito');
 
-        expect(find.text('Estamos confirmando tu pago'), findsOneWidget);
-        expect(find.textContaining('pagado'), findsNothing);
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
+        expect(find.textContaining('confirmado'), findsNothing);
       },
     );
 
     testWidgets(
-      'the return of the embedded Stripe page (with its session id) says the payment is being confirmed',
+      'the return of the embedded Stripe page (with its session id) without a confirmed payment is an error too',
       (tester) async {
         await openAt(tester, '/pago/retorno?session_id=cs_test_123');
 
-        expect(find.text('Estamos confirmando tu pago'), findsOneWidget);
-        expect(find.textContaining('pagado'), findsNothing);
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
         expect(find.textContaining('cs_test_123'), findsNothing);
       },
     );

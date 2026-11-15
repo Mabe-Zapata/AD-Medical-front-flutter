@@ -15,6 +15,10 @@ abstract interface class PaymentRepository {
   /// Where the latest payment attempt of the appointment stands. Needs [knowsPayment].
   Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId});
 
+  /// Where the most recent payment attempt started in this run stands, or null when none was started. Used when the
+  /// patient comes back from the provider: a return never proves the payment by itself.
+  Future<CheckoutStatus?> latestAttempt({required String patientId});
+
   /// Asks for the whole payment back. Needs [knowsPayment]. A retry of the same request reuses its idempotency
   /// key, so it never creates a second refund.
   Future<Refund> requestRefund({

@@ -23,6 +23,12 @@ class DemoPaymentRepository implements PaymentRepository {
   bool knowsPayment(String appointmentId) => _paid.contains(appointmentId);
 
   @override
+  Future<CheckoutStatus?> latestAttempt({required String patientId}) async {
+    if (_paid.isEmpty) return null;
+    return checkoutStatus(patientId: patientId, appointmentId: _paid.last);
+  }
+
+  @override
   Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId}) async {
     await _db.simulateLatency();
     if (!_paid.contains(appointmentId)) throw const AppError(ErrorKind.notFound, 'no checkout attempt yet', status: 404);

@@ -49,8 +49,17 @@ class HttpPaymentRepository implements PaymentRepository {
   }
 
   void _remember(String appointmentId, PaymentTrail trail) {
+    // Re-inserted at the end, so the map's last entry is always the most recent attempt.
+    _trails.remove(appointmentId);
     _trails[appointmentId] = trail;
     _store.save(_trails);
+  }
+
+  @override
+  Future<CheckoutStatus?> latestAttempt({required String patientId}) {
+    final attempts = _trails.entries.where((entry) => entry.value.paymentId != null);
+    if (attempts.isEmpty) return Future.value();
+    return checkoutStatus(patientId: patientId, appointmentId: attempts.last.key);
   }
 
   @override
