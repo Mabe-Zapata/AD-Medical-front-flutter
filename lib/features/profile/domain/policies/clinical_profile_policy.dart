@@ -5,7 +5,8 @@ const maxCigarettesPerDay = 200;
 enum ProfileProblem { altitude, smoking, cigarettes }
 
 /// What is wrong with the declared data. Null means the person has not answered yet. Empty result
-/// means it can be sent: the backend requires altitude and smoking, and a smoker's cigarettes per day.
+/// means it can be sent: the backend requires altitude and smoking, and a smoker's cigarettes per day. Sex and birth
+/// date were given at sign-up and are not asked again.
 List<ProfileProblem> profileProblems({int? altitudeM, bool? smoker, int? cigarettes}) => [
   if (altitudeM == null || altitudeM < 0 || altitudeM > maxAltitudeM) ProfileProblem.altitude,
   if (smoker == null) ProfileProblem.smoking,

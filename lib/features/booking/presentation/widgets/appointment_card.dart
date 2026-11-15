@@ -21,12 +21,15 @@ String appointmentRef(String id) => id.length > 8 ? id.substring(0, 8).toUpperCa
 /// Presentational: one appointment as a compact row (date tile, what and when, state), with the actions that make
 /// sense for that state underneath on a phone and at the end of the row on a wide screen.
 class AppointmentCard extends StatelessWidget {
-  const AppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay, this.processing = false});
+  const AppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay, this.onCheckPayment, this.onRefund, this.processing = false, this.paid = false});
 
   final Appointment appointment;
 
   /// The payment was sent and the bank has not confirmed it yet: no pay or cancel buttons, a notice instead.
   final bool processing;
+
+  /// The backend confirmed the payment, but the appointment still says it waits for it: no pay or verify buttons.
+  final bool paid;
 
   /// Shown only while the appointment still holds its slot.
   final VoidCallback? onCancel;
@@ -34,12 +37,22 @@ class AppointmentCard extends StatelessWidget {
   /// Shown only while the appointment waits for payment.
   final VoidCallback? onPay;
 
+  /// Shown while the payment waits for the bank: asks the backend where it stands (and confirms it if it was paid).
+  final VoidCallback? onCheckPayment;
+
+  /// Shown only on a cancelled appointment whose payment can be asked back.
+  final VoidCallback? onRefund;
+
   @override
   Widget build(BuildContext context) {
     final a = appointment;
-    final pending = a.status == AppointmentStatus.pendingPayment;
+    final pending = a.status == AppointmentStatus.pendingPayment && !paid;
     final inProcess = pending && processing;
-    final (label, color) = inProcess ? ('Procesando pago', Tokens.info) : appointmentStatusLabel(a.status);
+    final (label, color) = paid
+        ? ('Pago confirmado', Tokens.success)
+        : inProcess
+        ? ('Procesando pago', Tokens.info)
+        : appointmentStatusLabel(a.status);
     final start = branchTime(a.slot.startUtc);
     final expires = a.reservationExpiresAt;
     final price = a.service.basePrice > 0 ? money(a.service.basePrice, a.service.currency) : null;
@@ -53,6 +66,10 @@ class AppointmentCard extends StatelessWidget {
     final actions = [
       if (onPay != null && pending && !inProcess)
         FilledButton.icon(onPressed: onPay, icon: const Icon(Icons.lock_outline, size: 18), label: const Text('Pagar ahora')),
+      if (onCheckPayment != null && inProcess)
+        TextButton(onPressed: onCheckPayment, child: const Text('Verificar pago')),
+      if (onRefund != null && a.status == AppointmentStatus.cancelled)
+        TextButton(onPressed: onRefund, child: const Text('Pedir reembolso')),
       if (onCancel != null && a.holdsSlot && !inProcess)
         TextButton(
           onPressed: onCancel,

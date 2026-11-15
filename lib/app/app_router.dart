@@ -43,7 +43,8 @@ class AppRouter {
       Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
       Routes.profile => _modal(settings, const ProfileDialog()),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
-      Routes.paymentDone => _modal(settings, const PaymentResultDialog(completed: true)),
+      // The return never says whether the card was charged, so it gets the same "we are confirming" text.
+      Routes.paymentDone || Routes.paymentReturn => _modal(settings, const PaymentResultDialog(completed: true)),
       Routes.paymentCancelled => _modal(settings, const PaymentResultDialog(completed: false)),
       _ => _page(settings, const LandingPage()),
     };
@@ -51,19 +52,19 @@ class AppRouter {
 
   /// What the app shows when it opens. The link of the activation email (`#/verificar?token=...`) opens
   /// the verification modal over the landing page, and the payment provider's return addresses
-  /// (`/pago/exito`, `/pago/cancelado`, plain paths) open the payment result; any other address opens
+  /// (`/pago/exito`, `/pago/cancelado`, `/pago/retorno`, plain paths) open the payment result; any other address opens
   /// the landing page.
   List<Route<dynamic>> initialRoutes(String initialRoute) {
     final home = onGenerateRoute(const RouteSettings(name: Routes.home));
     final path = Uri.tryParse(initialRoute)?.path;
     if (path == Routes.verify) return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
-    final returned = const {Routes.paymentDone, Routes.paymentCancelled}.contains(path) ? path : _returnPath(Uri.base.path);
+    final returned = const {Routes.paymentDone, Routes.paymentCancelled, Routes.paymentReturn}.contains(path) ? path : _returnPath(Uri.base.path);
     if (returned == null) return [home];
     return [home, onGenerateRoute(RouteSettings(name: returned))];
   }
 
   static String? _returnPath(String path) =>
-      const {Routes.paymentDone, Routes.paymentCancelled}.where(path.endsWith).firstOrNull;
+      const {Routes.paymentDone, Routes.paymentCancelled, Routes.paymentReturn}.where(path.endsWith).firstOrNull;
 
   /// Flutter web only scrolls with the keyboard (arrows, Page Up/Down, Space) when something inside the
   /// route has focus; without it every key press is dropped. The autofocus node makes it work on arrival.

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_dialog.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/pages/save_card_dialog.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/pages/refund_dialog.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/widgets/payment_methods_section.dart';
 import 'package:medicalbooking_portal/app/app_scope.dart';
@@ -77,8 +79,11 @@ class _PortalPageState extends State<PortalPage> {
       getMyLabOrders: deps.getMyLabOrders,
       cancelAppointment: deps.cancelAppointment,
       startCheckout: deps.startCheckout,
+      getCheckoutStatus: deps.getCheckoutStatus,
+      requestRefund: deps.requestRefund,
       getSavedCard: deps.getSavedCard,
       removeSavedCard: deps.removeSavedCard,
+      startCardSetup: deps.startCardSetup,
       session: deps.session,
     )..load();
     final patient = deps.session.patient;
@@ -148,6 +153,14 @@ class _PortalPageState extends State<PortalPage> {
     if (confirmed == true) await _controller.removeCard();
   }
 
+  Future<void> _addCard() async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => SaveCardDialog(start: _controller.startCardSetup),
+    );
+    if (saved == true) await _controller.cardSaved();
+  }
+
   Future<void> _confirmCancel(Appointment appointment) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -167,6 +180,11 @@ class _PortalPageState extends State<PortalPage> {
       ),
     );
     if (confirmed == true) await _controller.cancel(appointment);
+  }
+
+  Future<void> _askRefund(Appointment appointment) async {
+    final request = await showDialog<RefundRequest>(context: context, builder: (_) => const RefundDialog());
+    if (request != null) await _controller.refund(appointment, request.reason, text: request.text);
   }
 
   @override
@@ -272,7 +290,9 @@ class _PortalPageState extends State<PortalPage> {
           NextAppointmentCard(
             _featured!,
             processing: _controller.isProcessing(_featured!),
+            paid: _controller.isPaid(_featured!),
             onPay: _controller.working ? null : () => _pay(_featured!),
+            onCheckPayment: _controller.working || !_controller.canCheckPayment(_featured!) ? null : () => _pay(_featured!),
             onCancel: _controller.working ? null : () => _confirmCancel(_featured!),
           ),
           const SizedBox(height: 20),
@@ -336,6 +356,7 @@ class _PortalPageState extends State<PortalPage> {
           holderName: patient.displayName,
           demo: deps.isDemo,
           onRemove: _controller.working ? null : _confirmRemoveCard,
+          onAddCard: deps.isDemo || _controller.working ? null : _addCard,
         )
       else
         ..._results(patient.displayName, isDemo: deps.isDemo),
@@ -387,10 +408,17 @@ class _PortalPageState extends State<PortalPage> {
         AppointmentCard(
           appointment,
           processing: _controller.isProcessing(appointment),
+          paid: _controller.isPaid(appointment),
           onPay: _controller.working ? null : () => _pay(appointment),
           onCancel: _controller.working
               ? null
               : () => _confirmCancel(appointment),
+          onCheckPayment: _controller.working || !_controller.canCheckPayment(appointment)
+              ? null
+              : () => _pay(appointment),
+          onRefund: _controller.working || !_controller.canRefund(appointment)
+              ? null
+              : () => _askRefund(appointment),
         ),
         const SizedBox(height: 14),
       ],

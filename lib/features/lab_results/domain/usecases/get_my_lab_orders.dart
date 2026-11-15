@@ -22,6 +22,7 @@ LabOrder onlyValidated(LabOrder order) => LabOrder(
   id: order.id,
   patientId: order.patientId,
   doctorName: order.doctorName,
+  doctorId: order.doctorId,
   orderedAt: order.orderedAt,
   priority: order.priority,
   status: order.status,

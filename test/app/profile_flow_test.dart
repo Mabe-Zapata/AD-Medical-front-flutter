@@ -69,7 +69,7 @@ void main() {
         find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
         '2850',
       );
-      await tapText(tester, find.text('No fumo'));
+        await tapText(tester, find.text('No fumo'));
       await tapText(tester, find.text('Guardar perfil'));
       expect(find.text('Perfil guardado'), findsOneWidget);
 
@@ -213,7 +213,7 @@ void main() {
         find.widgetWithText(TextField, 'Altitud de residencia (metros)'),
         '2850',
       );
-      await tapText(tester, find.text('No fumo'));
+        await tapText(tester, find.text('No fumo'));
       await tapText(tester, find.text('Guardar perfil'));
 
       expect(find.textContaining('Revisa la altitud'), findsOneWidget);
@@ -227,6 +227,8 @@ void main() {
         'altitud_residencia_m': 2850,
         'fumador': false,
         'cigarrillos_dia': null,
+        'sexo': null,
+        'fecha_nacimiento': null,
       });
     },
   );

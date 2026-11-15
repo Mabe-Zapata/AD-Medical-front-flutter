@@ -44,8 +44,15 @@ class DemoDatabase {
   final services = const [
     MedicalService(id: 'svc-blood', name: 'Toma de muestra de sangre', durationMin: 20, basePrice: 8),
     MedicalService(id: 'svc-urine', name: 'Toma de muestra de orina y heces', durationMin: 15, basePrice: 6),
-    MedicalService(id: 'svc-consult', name: 'Consulta médica', durationMin: 30, basePrice: 25),
-    MedicalService(id: 'svc-review', name: 'Revisión de resultados con el médico', durationMin: 20, basePrice: 15),
+    MedicalService(id: 'svc-consult', name: 'Consulta médica', durationMin: 30, basePrice: 25, specialtyId: 1),
+    MedicalService(id: 'svc-hema', name: 'Consulta de hematología', durationMin: 30, basePrice: 30, specialtyId: 2),
+    MedicalService(
+      id: 'svc-review',
+      name: 'Revisión de resultados con el médico',
+      durationMin: 20,
+      basePrice: 15,
+      requiresOrder: true,
+    ),
   ];
 
   final testTypes = const [
@@ -107,6 +114,18 @@ class DemoDatabase {
     status: status,
   );
 
+  /// A demo slot of [doctorId]: the same time can exist for two doctors, so the id includes the doctor.
+  TimeSlot slotForDoctor(DateTime day, int hour, int minute, {required String doctorId}) {
+    final base = slotAt(day, hour, minute);
+    return TimeSlot(
+      id: '$doctorId-${base.id}',
+      startUtc: base.startUtc,
+      endUtc: base.endUtc,
+      status: base.status,
+      doctorId: doctorId,
+    );
+  }
+
   void _seed() {
     final today = branchToday();
     final past = today.subtract(const Duration(days: 8));
@@ -145,6 +164,7 @@ class DemoDatabase {
           id: 'ORD-0501',
           patientId: patient.id,
           doctorName: 'Dr. Andrés Mora',
+          doctorId: 'demo-doctor-1',
           orderedAt: sampled.subtract(const Duration(hours: 1)),
           priority: OrderPriority.normal,
           status: OrderStatus.completed,
@@ -180,6 +200,7 @@ class DemoDatabase {
           id: 'ORD-0502',
           patientId: patient.id,
           doctorName: 'Dr. Andrés Mora',
+          doctorId: 'demo-doctor-1',
           orderedAt: now.subtract(const Duration(days: 1)),
           priority: OrderPriority.normal,
           status: OrderStatus.inProgress,

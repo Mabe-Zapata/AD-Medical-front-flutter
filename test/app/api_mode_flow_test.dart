@@ -6,8 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:medicalbooking_portal/app/app.dart';
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
 
 http.Response _json(Object body, int status) => http.Response(
   jsonEncode(body),
@@ -57,6 +59,10 @@ void main() {
               'roles': ['PACIENTE'],
               'permissions': ['citas.reservar'],
             }, 200);
+          case '/api/v1/specialties':
+            return _json({'items': [{'id': 1, 'nombre': 'Medicina general', 'descripcion': null}]}, 200);
+          case '/api/v1/doctors':
+            return _json({'items': [{'id': 'doc-1', 'nombre': 'Dr. Andrés Mora', 'especialidades': [{'id': 1, 'nombre': 'Medicina general'}], 'duracion_cita_min': 30}]}, 200);
           case '/api/v1/availability':
             if (tokenRejected) {
               return _json({'detail': 'Authentication required'}, 401);
@@ -129,11 +135,19 @@ void main() {
 
       await tester.tap(find.text('Agendar nueva cita'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Consulta médica'));
+      await tester.pumpAndSettle();
+      // The consultation's specialty (Medicina general) is selected by itself.
+      await tester.tap(find.text('Dr. Andrés Mora'));
+      await tester.pumpAndSettle();
       expect(requests, contains('GET /api/v1/availability'));
 
       // Pick another day: the next availability call is rejected as expired.
       tokenRejected = true;
-      await tester.tap(find.byType(ChoiceChip).at(2));
+      final otherDay = find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(2);
+      await tester.ensureVisible(otherDay);
+      await tester.pumpAndSettle();
+      await tester.tap(otherDay);
       await tester.pumpAndSettle();
 
       // The patient lands on the home page with a modal that explains what happened.
@@ -146,7 +160,7 @@ void main() {
     },
   );
   testWidgets(
-    'API mode: the sign-up sends only the fields the backend accepts and asks to check the email',
+    'API mode: the sign-up sends only the fields the backend accepts (including sex and birth date) and asks to check the email',
     (tester) async {
       final original = FlutterError.onError;
       FlutterError.onError = (details) {
@@ -194,6 +208,14 @@ void main() {
           entry.value,
         );
       }
+      await tester.ensureVisible(find.text('Femenino'));
+      await tester.tap(find.text('Femenino'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('birth-date')));
+      await tester.tap(find.byKey(const ValueKey('birth-date')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byWidgetPredicate((w) => w is Text && w.data?.toLowerCase() == 'aceptar'));
+      await tester.pumpAndSettle();
       for (final index in [0, 1]) {
         await tester.ensureVisible(find.byType(CheckboxListTile).at(index));
         await tester.tap(find.byType(CheckboxListTile).at(index));
@@ -213,6 +235,8 @@ void main() {
         'password': 'una-clave-larga-1',
         'first_name': 'Ana',
         'last_name': 'Pérez',
+        'sexo': 'F',
+        'fecha_nacimiento': isoDate(DateTime(DateTime.now().year - 30, 1, 1)),
       });
     },
   );

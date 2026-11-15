@@ -54,6 +54,10 @@ void main() {
     await type(tester, 'Nombres', 'Ana');
     await type(tester, 'Apellidos', 'Pérez');
     await type(tester, 'Correo electrónico', 'ana@demo.test');
+    await tapText(tester, find.text('Femenino'));
+    await tapText(tester, find.byKey(const ValueKey('birth-date')));
+    // The calendar opens on 1 January thirty years ago; accepting it picks that date.
+    await tapText(tester, find.byWidgetPredicate((w) => w is Text && w.data?.toLowerCase() == 'aceptar'));
     await type(tester, 'Contraseña', password);
     await type(tester, 'Confirmar', password);
     await tapText(tester, find.byType(CheckboxListTile).at(0));
@@ -62,7 +66,10 @@ void main() {
 
   /// Picks tomorrow and its first free time, inside the booking modal.
   Future<void> pickFirstSlot(WidgetTester tester) async {
-    await tapText(tester, find.byType(ChoiceChip).at(1));
+    await tapText(tester, find.text('Consulta médica'));
+    await tapText(tester, find.widgetWithText(ChoiceChip, 'Medicina general'));
+    await tapText(tester, find.text('Dr. Andrés Mora'));
+    await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
     await tapText(
       tester,
       find
@@ -386,6 +393,55 @@ void main() {
       await tapText(tester, find.text('Confirmar reserva'));
       expect(find.textContaining('creada'), findsOneWidget);
       expect(find.text('Bienvenido, María'), findsOneWidget);
+    });
+
+    testWidgets('a lab sample goes straight to the time, a consultation asks for specialty and doctor first', (
+      tester,
+    ) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await signInWithDemoAccount(tester, 'INICIAR SESIÓN');
+      await tapText(tester, find.text('Agendar nueva cita'));
+
+      // Labels may be upper-cased on screen, so match them without case.
+      final specialtyLabel = find.byWidgetPredicate(
+        (widget) => widget is Text && (widget.data ?? '').toLowerCase().contains('especialidad'),
+      );
+
+      // The first demo service is a lab sample.
+      expect(specialtyLabel, findsNothing);
+
+      await tapText(tester, find.text('Consulta médica'));
+      expect(specialtyLabel, findsOneWidget);
+    });
+
+    testWidgets('a result review takes the doctor of the latest order and then offers the times', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await signInWithDemoAccount(tester, 'INICIAR SESIÓN');
+      await tapText(tester, find.text('Agendar nueva cita'));
+
+      await tapText(tester, find.text('Revisión de resultados con el médico'));
+
+      // The doctor is not chosen by the patient: it is the one of the order, and the times are that doctor's own.
+      expect(find.text('Dr. Andrés Mora'), findsWidgets);
+      expect(find.byType(SlotPicker), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is Text && (widget.data ?? '').toLowerCase().contains('especialidad'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a hematology consultation selects its own specialty and offers no other', (tester) async {
+      await pumpApp(tester, size: const Size(1400, 900));
+      await signInWithDemoAccount(tester, 'INICIAR SESIÓN');
+      await tapText(tester, find.text('Agendar nueva cita'));
+
+      await tapText(tester, find.text('Consulta de hematología'));
+
+      expect(find.widgetWithText(ChoiceChip, 'Hematología'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Medicina general'), findsNothing);
+      expect(find.text('Dra. Lucía Vera'), findsWidgets);
     });
 
     testWidgets('cannot continue until a time is chosen, and can go back', (

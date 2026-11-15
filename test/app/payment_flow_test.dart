@@ -58,7 +58,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
     await tester.pumpAndSettle();
     await tapText(tester, find.text('Agendar nueva cita'));
-    await tapText(tester, find.byType(ChoiceChip).at(1));
+    await tapText(tester, find.text('Consulta médica'));
+    await tapText(tester, find.widgetWithText(ChoiceChip, 'Medicina general'));
+    await tapText(tester, find.text('Dr. Andrés Mora'));
+    await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
     await tapText(
       tester,
       find
@@ -137,6 +140,30 @@ void main() {
   );
 
   testWidgets(
+    'demo: a paid appointment that is cancelled can ask for a refund, which stays "requested" and cannot be asked twice',
+    (tester) async {
+      await bookInDemo(tester);
+      await submitPayment(tester);
+      await tapText(tester, find.text('Volver a mi portal'));
+      // Nothing to refund while the appointment is still active.
+      expect(find.text('Pedir reembolso'), findsNothing);
+
+      await tapText(tester, find.text('Cancelar cita').first);
+      await tapText(tester, find.widgetWithText(FilledButton, 'Cancelar cita'));
+      await tapText(tester, find.text('Pedir reembolso').first);
+      expect(find.text('Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo.'), findsOneWidget);
+      await tapText(tester, find.widgetWithText(FilledButton, 'Pedir reembolso'));
+
+      expect(find.textContaining('Pedimos tu reembolso'), findsOneWidget);
+      expect(find.textContaining('reembolsado'), findsNothing);
+
+      await tapText(tester, find.text('Pedir reembolso').first);
+      await tapText(tester, find.widgetWithText(FilledButton, 'Pedir reembolso'));
+      expect(find.text('Ya hay un reembolso en curso para este pago.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'demo: a declined card is explained in Spanish and the form keeps what the patient chose',
     (tester) async {
       await bookInDemo(tester);
@@ -207,6 +234,7 @@ void main() {
     late List<String> calls;
     late int checkoutStatus;
     var embedded = false;
+    String? checkoutConflict;
     Uri? opened;
 
     Future<void> bookAndOpenPortal(WidgetTester tester) async {
@@ -227,6 +255,10 @@ void main() {
               'roles': ['PACIENTE'],
               'permissions': ['citas.reservar'],
             }, 200);
+          case '/api/v1/specialties':
+            return _json({'items': [{'id': 1, 'nombre': 'Medicina general', 'descripcion': null}]}, 200);
+          case '/api/v1/doctors':
+            return _json({'items': [{'id': 'doc-1', 'nombre': 'Dr. Andrés Mora', 'especialidades': [{'id': 1, 'nombre': 'Medicina general'}], 'duracion_cita_min': 30}]}, 200);
           case '/api/v1/availability':
             final start = DateTime.now()
                 .toUtc()
@@ -279,6 +311,9 @@ void main() {
               'moneda': 'USD',
             }, 201);
           case '/api/v1/payments/checkout':
+            if (checkoutConflict != null) {
+              return _json({'detail': checkoutConflict, 'correlation_id': 'c-9'}, 409);
+            }
             if (embedded) {
               return _json({
                 'pago_id': 'p-1',
@@ -331,7 +366,8 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
       await tester.pumpAndSettle();
       await tapText(tester, find.text('Agendar nueva cita'));
-      await tapText(tester, find.byType(ChoiceChip).at(1));
+      // A lab sample has no specialty or doctor: the times come straight after the service.
+      await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
       await tapText(
         tester,
         find
@@ -364,6 +400,56 @@ void main() {
           findsOneWidget,
         );
         expect(find.textContaining('Pagar \$'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a payment already started is verified instead of paid again, and a paid one is confirmed',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        embedded = true;
+        addTearDown(() {
+          embedded = false;
+          checkoutConflict = null;
+        });
+        await bookAndOpenPortal(tester);
+        await tapText(tester, find.text('Pagar ahora'));
+        await tapText(tester, find.byIcon(Icons.close));
+
+        // The invoice exists now: paying again is not offered, verifying is.
+        expect(find.text('Pagar ahora'), findsNothing);
+        expect(find.text('Verificar pago'), findsWidgets);
+
+        // The backend asked Stripe and the session was paid.
+        checkoutConflict = 'The invoice is already paid';
+        await tapText(tester, find.text('Verificar pago').first);
+        expect(find.textContaining('Tu pago está confirmado'), findsWidgets);
+        // The backend does not move the appointment itself, so the card shows the payment as confirmed.
+        expect(find.text('Pago confirmado'), findsWidgets);
+        expect(find.text('Verificar pago'), findsNothing);
+        expect(find.text('Pagar ahora'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'verifying a payment Stripe has not settled says it is still being confirmed',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        embedded = true;
+        addTearDown(() {
+          embedded = false;
+          checkoutConflict = null;
+        });
+        await bookAndOpenPortal(tester);
+        await tapText(tester, find.text('Pagar ahora'));
+        await tapText(tester, find.byIcon(Icons.close));
+
+        checkoutConflict = 'The payment is still being processed';
+        await tapText(tester, find.text('Verificar pago').first);
+        expect(find.textContaining('Estamos confirmando tu pago'), findsWidgets);
+        expect(find.text('Pagar ahora'), findsNothing);
       },
     );
 
@@ -423,12 +509,24 @@ void main() {
     }
 
     testWidgets(
-      'success says the payment is being confirmed, never that it is paid',
+      'success without a confirmed payment says an error happened and the payment was not completed',
       (tester) async {
         await openAt(tester, '/pago/exito');
 
-        expect(find.text('Estamos confirmando tu pago'), findsOneWidget);
-        expect(find.textContaining('pagado'), findsNothing);
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
+        expect(find.textContaining('confirmado'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the return of the embedded Stripe page (with its session id) without a confirmed payment is an error too',
+      (tester) async {
+        await openAt(tester, '/pago/retorno?session_id=cs_test_123');
+
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
+        expect(find.textContaining('cs_test_123'), findsNothing);
       },
     );
 

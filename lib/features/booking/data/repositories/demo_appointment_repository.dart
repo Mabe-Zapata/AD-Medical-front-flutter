@@ -1,6 +1,7 @@
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/booking/domain/repositories/appointment_repository.dart';
@@ -12,12 +13,37 @@ class DemoAppointmentRepository implements AppointmentRepository {
 
   final DemoDatabase _db;
 
+  /// Two made-up doctors, each with one specialty, so the demo shows the same choices as the real API.
+  static const _medicinaGeneral = Specialty(id: 1, name: 'Medicina general');
+  static const _hematologia = Specialty(id: 2, name: 'Hematología');
+  static const _specialties = [_medicinaGeneral, _hematologia];
+  static const _doctors = [
+    Doctor(id: 'demo-doctor-1', name: 'Dr. Andrés Mora', specialties: [_medicinaGeneral], durationMin: 30),
+    Doctor(id: 'demo-doctor-2', name: 'Dra. Lucía Vera', specialties: [_hematologia], durationMin: 30),
+  ];
+
   @override
-  Future<List<TimeSlot>> slotsForDay(DateTime day) async {
+  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId}) async {
     await _db.simulateLatency();
+    final doctor = doctorId ?? _doctors.first.id;
     return [
       for (var i = 0; i < DemoDatabase.slotsPerDay; i++)
-        _db.slotAt(day, 8 + i ~/ 2, i.isEven ? 0 : 30),
+        _db.slotForDoctor(day, 8 + i ~/ 2, i.isEven ? 0 : 30, doctorId: doctor),
+    ];
+  }
+
+  @override
+  Future<List<Specialty>> specialties() async {
+    await _db.simulateLatency();
+    return _specialties;
+  }
+
+  @override
+  Future<List<Doctor>> doctors({int? specialtyId}) async {
+    await _db.simulateLatency();
+    return [
+      for (final doctor in _doctors)
+        if (specialtyId == null || doctor.specialties.any((s) => s.id == specialtyId)) doctor,
     ];
   }
 
@@ -34,7 +60,8 @@ class DemoAppointmentRepository implements AppointmentRepository {
     final contested =
         local.hour == DemoDatabase.contestedHour && local.minute == DemoDatabase.contestedMinute;
     if (!fresh.isAvailable || contested) {
-      _db.lostSlotIds.add(slot.id);
+      // Lost slots are tracked by time, the same key slotAt uses (doctor-prefixed ids would never match).
+      _db.lostSlotIds.add(DemoDatabase.slotId(fresh.startUtc));
       return SlotTaken(slot);
     }
     final now = DateTime.now().toUtc();

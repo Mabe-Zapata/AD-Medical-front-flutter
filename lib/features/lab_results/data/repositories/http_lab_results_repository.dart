@@ -81,6 +81,7 @@ class HttpLabResultsRepository implements LabResultsRepository {
           : OrderPriority.normal,
       status: _orderStatus(order['estado'] as String),
       orderedAt: orderedAt,
+      doctorId: order['medico_id'] as String?,
       notes: order['observaciones'] as String?,
       details: [
         for (var i = 0; i < tests.length; i++)

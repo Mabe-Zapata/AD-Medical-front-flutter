@@ -4,6 +4,7 @@ import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/core/http/idempotency_key.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/booking/domain/repositories/appointment_repository.dart';
@@ -21,16 +22,52 @@ class HttpAppointmentRepository implements AppointmentRepository {
   final List<Appointment> _mine = [];
 
   @override
-  Future<List<TimeSlot>> slotsForDay(DateTime day) async {
+  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId}) async {
     final from = utcFromBranch(day.year, day.month, day.day, 0, 0);
     final json =
         await _api.get(
               '/availability',
-              query: {'desde': _offsetIso(from), 'hasta': _offsetIso(from.add(const Duration(days: 1)))},
+              query: {
+                'desde': _offsetIso(from),
+                'hasta': _offsetIso(from.add(const Duration(days: 1))),
+                'medico_id': ?doctorId,
+              },
             )
             as Map<String, dynamic>;
     return [for (final item in json['items'] as List) _slot(item as Map<String, dynamic>)];
   }
+
+  @override
+  Future<List<Specialty>> specialties() async {
+    final json = await _api.get('/specialties') as Map<String, dynamic>;
+    return [
+      for (final item in json['items'] as List)
+        Specialty(
+          id: (item as Map<String, dynamic>)['id'] as int,
+          name: item['nombre'] as String,
+          description: item['descripcion'] as String?,
+        ),
+    ];
+  }
+
+  @override
+  Future<List<Doctor>> doctors({int? specialtyId}) async {
+    final json =
+        await _api.get('/doctors', query: {'especialidad_id': ?specialtyId?.toString()}) as Map<String, dynamic>;
+    return [
+      for (final item in json['items'] as List) _doctor(item as Map<String, dynamic>),
+    ];
+  }
+
+  Doctor _doctor(Map<String, dynamic> json) => Doctor(
+    id: json['id'] as String,
+    name: json['nombre'] as String,
+    durationMin: json['duracion_cita_min'] as int,
+    specialties: [
+      for (final e in json['especialidades'] as List)
+        Specialty(id: (e as Map<String, dynamic>)['id'] as int, name: e['nombre'] as String),
+    ],
+  );
 
   @override
   Future<ReservationResult> reserve({

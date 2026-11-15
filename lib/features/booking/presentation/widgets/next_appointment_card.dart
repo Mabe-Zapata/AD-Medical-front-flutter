@@ -9,25 +9,38 @@ import 'package:medicalbooking_portal/shared/presentation/atoms/status_chip.dart
 
 /// Presentational: the appointment that comes first, large, with its main action. It sits over the blue band.
 class NextAppointmentCard extends StatelessWidget {
-  const NextAppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay, this.processing = false});
+  const NextAppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay, this.onCheckPayment, this.processing = false, this.paid = false});
 
   final Appointment appointment;
   final bool processing;
+
+  /// The backend confirmed the payment, but the appointment still says it waits for it.
+  final bool paid;
   final VoidCallback? onCancel;
   final VoidCallback? onPay;
+
+  /// Shown while the payment waits for the bank: verifies it with the backend instead of paying again.
+  final VoidCallback? onCheckPayment;
 
   @override
   Widget build(BuildContext context) {
     final a = appointment;
-    final pending = a.status == AppointmentStatus.pendingPayment;
+    final pending = a.status == AppointmentStatus.pendingPayment && !paid;
     final inProcess = pending && processing;
-    final (label, color) = inProcess ? ('Procesando pago', Tokens.info) : appointmentStatusLabel(a.status);
+    final (label, color) = paid
+        ? ('Pago confirmado', Tokens.success)
+        : inProcess
+        ? ('Procesando pago', Tokens.info)
+        : appointmentStatusLabel(a.status);
     final start = branchTime(a.slot.startUtc);
     final expires = a.reservationExpiresAt;
     final price = a.service.basePrice > 0 ? money(a.service.basePrice, a.service.currency) : null;
     final showPay = onPay != null && pending && !inProcess;
+    final showCheck = onCheckPayment != null && inProcess;
     final showCancel = onCancel != null && a.holdsSlot && !inProcess;
-    final note = inProcess
+    final note = paid
+        ? 'Tu pago está confirmado. El laboratorio confirmará tu cita.'
+        : inProcess
         ? 'Pago pendiente de procesamiento. Tu cita se confirmará en cuanto el banco avise.'
         : (pending && expires != null ? 'Retenida hasta las ${timeLabel(branchTime(expires))}. Págala antes para no perder el horario.' : null);
     final info = Column(
@@ -72,6 +85,8 @@ class NextAppointmentCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showPay) FilledButton.icon(onPressed: onPay, icon: const Icon(Icons.lock_outline, size: 18), label: const Text('Pagar ahora')),
+        if (showCheck)
+          FilledButton.icon(onPressed: onCheckPayment, icon: const Icon(Icons.refresh, size: 18), label: const Text('Verificar pago')),
         if (showCancel)
           TextButton(
             onPressed: onCancel,
@@ -94,7 +109,7 @@ class NextAppointmentCard extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 640;
-          final hasActions = showPay || showCancel;
+          final hasActions = showPay || showCheck || showCancel;
           if (wide) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.center,

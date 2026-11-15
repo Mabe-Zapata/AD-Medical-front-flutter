@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:medicalbooking_portal/app/app_scope.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/features/profile/domain/entities/clinical_profile.dart';
 import 'package:medicalbooking_portal/features/profile/domain/policies/clinical_profile_policy.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
@@ -11,8 +12,8 @@ import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/organisms/two_panel_modal.dart';
 
-/// Container: the patient's clinical profile (altitude of residence and smoking). It is used to adjust
-/// how the hemoglobin is interpreted, and only the patient can write it.
+/// Container: the patient's clinical profile: altitude of residence and smoking, which adjust how the hemoglobin is
+/// interpreted. Only the patient can write it.
 class ProfileDialog extends StatefulWidget {
   const ProfileDialog({super.key});
 
@@ -24,6 +25,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
   final _altitude = TextEditingController();
   final _cigarettes = TextEditingController();
   bool? _smoker;
+  BiologicalSex? _sex;
+  DateTime? _birthDate;
   bool _prefilled = false;
   bool _submitted = false;
   bool _busy = false;
@@ -42,6 +45,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
     if (current == null) return;
     _altitude.text = '${current.altitudeM}';
     _smoker = current.smoker;
+    _sex = current.sex;
+    _birthDate = current.birthDate;
     _cigarettes.text = current.cigarettesPerDay == null ? '' : '${current.cigarettesPerDay}';
   }
 
@@ -56,7 +61,11 @@ class _ProfileDialogState extends State<ProfileDialog> {
   int? get _cigarettesValue => int.tryParse(_cigarettes.text.trim());
 
   Set<ProfileProblem> get _problems =>
-      profileProblems(altitudeM: _altitudeValue, smoker: _smoker, cigarettes: _cigarettesValue).toSet();
+      profileProblems(
+        altitudeM: _altitudeValue,
+        smoker: _smoker,
+        cigarettes: _cigarettesValue,
+      ).toSet();
 
   String? _fieldError(ProfileProblem problem, String message) =>
       _submitted && _problems.contains(problem) ? message : null;
@@ -77,6 +86,8 @@ class _ProfileDialogState extends State<ProfileDialog> {
         ClinicalProfile(
           altitudeM: _altitudeValue!,
           smoker: _smoker!,
+          sex: _sex,
+          birthDate: _birthDate,
           cigarettesPerDay: _smoker! ? _cigarettesValue : null,
         ),
       );
