@@ -6,6 +6,7 @@ import 'package:medicalbooking_portal/features/auth/data/repositories/http_auth_
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart' as memory;
 import 'package:medicalbooking_portal/features/auth/data/session/session_store_factory.dart';
 import 'package:medicalbooking_portal/features/auth/domain/repositories/auth_repository.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/change_password.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/register_patient.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
@@ -60,6 +61,7 @@ class AppDependencies {
     required this.isDemo,
     required this.session,
     required this.verifyEmail,
+    required this.changePassword,
     required this.clinicalProfiles,
     required this.getCatalog,
     required this.getDaySlots,
@@ -95,6 +97,7 @@ class AppDependencies {
       isDemo: true,
       session: _session(auth, store),
       verifyEmail: VerifyEmail(auth),
+      changePassword: ChangePassword(auth),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(DemoClinicalProfileRepository(db)),
         load: LoadClinicalProfile(DemoClinicalProfileRepository(db)),
@@ -152,6 +155,7 @@ class AppDependencies {
       isDemo: false,
       session: session,
       verifyEmail: VerifyEmail(auth),
+      changePassword: ChangePassword(auth),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
         load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
@@ -206,6 +210,7 @@ class AppDependencies {
 
   final SessionController session;
   final VerifyEmail verifyEmail;
+  final ChangePassword changePassword;
   final ClinicalProfileController clinicalProfiles;
   final GetCatalog getCatalog;
   final GetDaySlots getDaySlots;

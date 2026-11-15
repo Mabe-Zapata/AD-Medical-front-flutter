@@ -9,6 +9,12 @@ class HttpAuthRepository implements AuthRepository {
 
   final ApiClient _api;
 
+  /// `POST /me/password`: the API proves the current password itself; `email` is only needed by the demo.
+  @override
+  Future<void> changePassword({required String email, required String current, required String next}) async {
+    await _api.post('/me/password', body: {'current_password': current, 'new_password': next});
+  }
+
   @override
   Future<IssuedToken> login({required String email, required String password}) async {
     final json =
