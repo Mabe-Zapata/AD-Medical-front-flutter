@@ -18,6 +18,19 @@ const _longEnough = 'una-clave-larga-1';
 
 final _today = DateTime(2026, 11, 14);
 
+NewPatientAccount _with({String? documentType = 'CEDULA', String documentNumber = '1712345678', String? phone}) =>
+    NewPatientAccount(
+      firstName: 'Ana',
+      lastName: 'Pérez',
+      email: 'ana@demo.test',
+      password: _longEnough,
+      documentType: documentType,
+      documentNumber: documentNumber,
+      phone: phone,
+      sex: BiologicalSex.female,
+      birthDate: DateTime(1992, 5, 14),
+    );
+
 NewPatientAccount _account({
   String email = 'ana@demo.test',
   String secret = _longEnough,
@@ -28,6 +41,8 @@ NewPatientAccount _account({
   lastName: 'Pérez',
   email: email,
   password: secret,
+  documentType: 'CEDULA',
+  documentNumber: '1712345678',
   sex: sex,
   birthDate: birthDate ?? DateTime(1992, 5, 14),
 );
@@ -42,7 +57,7 @@ void main() {
 
     test('asks for sex and birth date', () {
       expect(registrationProblems(_account(sex: null), now: _today), [RegistrationProblem.sex]);
-      const noDate = NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: 'ana@demo.test', password: _longEnough, sex: BiologicalSex.female);
+      const noDate = NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: 'ana@demo.test', password: _longEnough, documentType: 'CEDULA', documentNumber: '1712345678', sex: BiologicalSex.female);
       expect(registrationProblems(noDate, now: _today), [RegistrationProblem.birthDate]);
     });
 
@@ -53,9 +68,32 @@ void main() {
     });
 
     test('reports every field that is wrong', () {
-      const account = NewPatientAccount(firstName: '', lastName: ' ', email: 'no-es-correo', password: 'corta');
+      const account = NewPatientAccount(firstName: '', lastName: ' ', email: 'no-es-correo', password: 'corta', documentType: null, documentNumber: '');
 
-      expect(registrationProblems(account.normalized()), RegistrationProblem.values);
+      expect(registrationProblems(account.normalized()), [
+        RegistrationProblem.firstName,
+        RegistrationProblem.lastName,
+        RegistrationProblem.email,
+        RegistrationProblem.document,
+        RegistrationProblem.sex,
+        RegistrationProblem.birthDate,
+        RegistrationProblem.passwordLength,
+      ]);
+    });
+
+    test('the identity document is required: a cédula has 10 digits, a passport 6 to 20 characters', () {
+      expect(registrationProblems(_account(), now: _today), isEmpty);
+      expect(registrationProblems(_with(documentType: 'CEDULA', documentNumber: '171234567'), now: _today), [RegistrationProblem.document]);
+      expect(registrationProblems(_with(documentType: 'CEDULA', documentNumber: '17123456AB'), now: _today), [RegistrationProblem.document]);
+      expect(registrationProblems(_with(documentType: 'PASAPORTE', documentNumber: 'AB12'), now: _today), [RegistrationProblem.document]);
+      expect(registrationProblems(_with(documentType: null, documentNumber: '1712345678'), now: _today), [RegistrationProblem.document]);
+      expect(registrationProblems(_with(documentType: 'PASAPORTE', documentNumber: 'AB123456'), now: _today), isEmpty);
+    });
+
+    test('the phone is optional, and when given it has 7 to 15 digits', () {
+      expect(registrationProblems(_with(phone: null), now: _today), isEmpty);
+      expect(registrationProblems(_with(phone: '+593 99-123 4567'), now: _today), isEmpty);
+      expect(registrationProblems(_with(phone: '12'), now: _today), [RegistrationProblem.phone]);
     });
 
     test('the password minimum is the one the backend enforces', () {
@@ -93,12 +131,18 @@ void main() {
       final body = await sent(_account(sex: BiologicalSex.male, birthDate: DateTime(1990, 1, 2)));
       expect(body['sexo'], 'M');
       expect(body['fecha_nacimiento'], '1990-01-02');
-      expect(body.keys.toSet(), {'email', 'password', 'first_name', 'last_name', 'sexo', 'fecha_nacimiento'});
+      expect(body.keys.toSet(), {'email', 'password', 'first_name', 'last_name', 'tipo_documento', 'numero_documento', 'sexo', 'fecha_nacimiento'});
     });
 
-    test('an account with neither sends exactly the four original fields', () async {
-      const bare = NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: 'ana@demo.test', password: _longEnough);
-      expect((await sent(bare)).keys.toSet(), {'email', 'password', 'first_name', 'last_name'});
+    test('an account without phone or demographics sends the document and the name fields', () async {
+      const bare = NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: 'ana@demo.test', password: _longEnough, documentType: 'CEDULA', documentNumber: '1712345678');
+      expect((await sent(bare)).keys.toSet(), {'email', 'password', 'first_name', 'last_name', 'tipo_documento', 'numero_documento'});
+    });
+
+    test('a phone is sent only when it is given', () async {
+      final body = await sent(NewPatientAccount(firstName: 'Ana', lastName: 'Pérez', email: 'ana@demo.test', password: _longEnough, documentType: 'PASAPORTE', documentNumber: 'ab123456', phone: '+593 99 123 4567').normalized());
+      expect(body['telefono'], '+593991234567');
+      expect(body['numero_documento'], 'AB123456');
     });
   });
 
@@ -110,6 +154,8 @@ void main() {
           lastName: 'Pérez ',
           email: ' ANA@Demo.test ',
           password: _longEnough,
+          documentType: 'CEDULA',
+          documentNumber: ' 1712345678 ',
           sex: BiologicalSex.male,
           birthDate: DateTime(1990, 1, 2),
         ),

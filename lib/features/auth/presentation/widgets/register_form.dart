@@ -32,6 +32,9 @@ class _RegisterFormState extends State<RegisterForm> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  final _documentNumber = TextEditingController();
+  final _phone = TextEditingController();
+  String? _documentType;
   BiologicalSex? _sex;
   DateTime? _birthDate;
   bool _terms = false;
@@ -40,7 +43,7 @@ class _RegisterFormState extends State<RegisterForm> {
 
   @override
   void dispose() {
-    for (final controller in [_firstName, _lastName, _email, _password, _confirm]) {
+    for (final controller in [_firstName, _lastName, _email, _password, _confirm, _documentNumber, _phone]) {
       controller.dispose();
     }
     super.dispose();
@@ -52,6 +55,9 @@ class _RegisterFormState extends State<RegisterForm> {
       lastName: _lastName.text,
       email: _email.text,
       password: _password.text,
+      documentType: _documentType,
+      documentNumber: _documentNumber.text,
+      phone: _phone.text,
       sex: _sex,
       birthDate: _birthDate,
     ).normalized();
@@ -106,6 +112,37 @@ class _RegisterFormState extends State<RegisterForm> {
               labelText: 'Correo electrónico',
               prefixIcon: const Icon(Icons.mail_outline, size: 20),
               errorText: _error(RegistrationProblem.email),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: _gap),
+          pair(
+            DropdownButtonFormField<String>(
+              initialValue: _documentType,
+              decoration: const InputDecoration(labelText: 'Tipo de documento'),
+              items: const [
+                DropdownMenuItem(value: 'CEDULA', child: Text('Cédula')),
+                DropdownMenuItem(value: 'PASAPORTE', child: Text('Pasaporte')),
+              ],
+              onChanged: (value) => setState(() => _documentType = value),
+            ),
+            TextField(
+              controller: _documentNumber,
+              decoration: InputDecoration(
+                labelText: 'Número de documento',
+                errorText: _error(RegistrationProblem.document),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          const SizedBox(height: _gap),
+          TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: 'Teléfono (opcional)',
+              prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              errorText: _error(RegistrationProblem.phone),
             ),
             onChanged: (_) => setState(() {}),
           ),

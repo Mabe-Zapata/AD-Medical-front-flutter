@@ -21,7 +21,8 @@ class HttpAuthRepository implements AuthRepository {
   }
 
   /// `POST /auth/register`: public, answers 202 whatever the email. The role is not sent; the server fixes it
-  /// to patient, and it rejects any field it does not know (so no phone). `sexo` (`M`/`F`) and
+  /// to patient, and it rejects any field it does not know. The identity document is required; `telefono` is
+  /// sent only when given. `sexo` (`M`/`F`) and
   /// `fecha_nacimiento` (`YYYY-MM-DD`) are optional for the server and sent only when the form has them.
   @override
   Future<void> register(NewPatientAccount account) async {
@@ -32,6 +33,9 @@ class HttpAuthRepository implements AuthRepository {
         'password': account.password,
         'first_name': account.firstName,
         'last_name': account.lastName,
+        'tipo_documento': account.documentType,
+        'numero_documento': account.documentNumber,
+        if (account.phone != null) 'telefono': account.phone,
         if (account.sex != null) 'sexo': account.sex!.code,
         if (account.birthDate != null) 'fecha_nacimiento': isoDate(account.birthDate!),
       },
