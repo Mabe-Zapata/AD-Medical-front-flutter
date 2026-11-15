@@ -21,6 +21,10 @@ abstract interface class AuthRepository {
   /// when the link is invalid, already used or expired.
   Future<void> verifyEmail(String token);
 
+  /// Changes the password of the signed-in account after proving the current one. Throws `AppError.forbidden`
+  /// when the current password is wrong; the session stays alive (only a 401 signs the patient out).
+  Future<void> changePassword({required String email, required String current, required String next});
+
   /// Takes the token explicitly: the session does not exist yet while signing in.
   Future<Patient> fetchProfile({required String token, required String email});
 }

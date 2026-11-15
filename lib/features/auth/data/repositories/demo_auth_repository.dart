@@ -15,11 +15,16 @@ class DemoAuthRepository implements AuthRepository {
   /// Accounts created with [register]; they live as long as the page.
   final _registered = <String, ({String password, Patient patient})>{};
 
+  /// Passwords changed on this page, by email; they win over the stored ones.
+  final _changed = <String, String>{};
+
+  String? _passwordOf(String email) =>
+      _changed[email] ?? (email == DemoDatabase.demoEmail ? DemoDatabase.demoPassword : _registered[email]?.password);
+
   @override
   Future<IssuedToken> login({required String email, required String password}) async {
     await _db.simulateLatency();
-    final isDemoAccount = email == DemoDatabase.demoEmail && password == DemoDatabase.demoPassword;
-    if (!isDemoAccount && _registered[email]?.password != password) {
+    if (_passwordOf(email) != password) {
       throw const AppError(ErrorKind.invalidCredentials, 'invalid credentials');
     }
     return const IssuedToken(token: 'demo-token', expiresIn: Duration(minutes: 15));
@@ -41,6 +46,15 @@ class DemoAuthRepository implements AuthRepository {
         permissions: const ['citas.reservar', 'citas.leer_propias', 'resultados.leer_propios'],
       ),
     );
+  }
+
+  @override
+  Future<void> changePassword({required String email, required String current, required String next}) async {
+    await _db.simulateLatency();
+    if (_passwordOf(email) != current) {
+      throw const AppError(ErrorKind.forbidden, 'current password is wrong');
+    }
+    _changed[email] = next;
   }
 
   /// The demo activates accounts at once; this only accepts the token the demo link would carry.

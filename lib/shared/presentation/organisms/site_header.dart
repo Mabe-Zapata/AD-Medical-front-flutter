@@ -14,6 +14,7 @@ class SiteHeader extends StatelessWidget {
     required this.onSignIn,
     required this.onRegister,
     required this.onOpenPortal,
+    required this.onChangePassword,
     required this.onSignOut,
   });
 
@@ -22,6 +23,7 @@ class SiteHeader extends StatelessWidget {
   final VoidCallback onSignIn;
   final VoidCallback onRegister;
   final VoidCallback onOpenPortal;
+  final VoidCallback onChangePassword;
   final VoidCallback onSignOut;
 
   static const sections = {'home': 'Inicio', 'about': 'Nosotros', 'product': 'Pruebas'};
@@ -76,6 +78,11 @@ class SiteHeader extends StatelessWidget {
             ),
           if (signedIn) ...[
             TextButton(onPressed: onOpenPortal, child: const Text('Mi portal')),
+            IconButton(
+              tooltip: 'Cambiar contraseña',
+              onPressed: onChangePassword,
+              icon: const Icon(Icons.lock_reset, size: 20, color: Tokens.muted),
+            ),
             IconButton(
               tooltip: 'Cerrar sesión',
               onPressed: onSignOut,

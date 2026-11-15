@@ -13,4 +13,5 @@ abstract final class Routes {
   /// Where the backend's embedded Stripe page sends the browser when it finishes (`return_url`).
   static const paymentReturn = '/pago/retorno';
   static const profile = '/perfil';
+  static const changePassword = '/cuenta/contrasena';
 }

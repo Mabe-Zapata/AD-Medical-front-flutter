@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/auth_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/change_password_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/session_expired_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
@@ -15,7 +16,7 @@ class AppRouter {
   const AppRouter(this._dependencies);
 
   /// Pages that need a signed-in patient.
-  static const _protected = {Routes.book, Routes.portal, Routes.profile};
+  static const _protected = {Routes.book, Routes.portal, Routes.profile, Routes.changePassword};
 
   final AppDependencies _dependencies;
 
@@ -42,6 +43,7 @@ class AppRouter {
       Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
       Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
       Routes.profile => _modal(settings, const ProfileDialog()),
+      Routes.changePassword => _modal(settings, const ChangePasswordDialog()),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
       // The return never says whether the card was charged, so it gets the same "we are confirming" text.
       Routes.paymentDone || Routes.paymentReturn => _modal(settings, const PaymentResultDialog(completed: true)),
