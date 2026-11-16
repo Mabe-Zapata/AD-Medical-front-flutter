@@ -176,6 +176,26 @@ void main() {
     expect(other.status, AppointmentStatus.cancelled);
   });
 
+  test('sends the optional patient reason trimmed, and no body when it is blank', () async {
+    final bodies = <String>[];
+    final repo = _repo(
+      MockClient((request) async {
+        if (request.url.path.endsWith('/cancel')) {
+          bodies.add(request.body);
+          return _json({'id': 'apt-1', 'estado': 'CANCELADA'}, 200);
+        }
+        return _json({'id': 'apt-1', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot);
+
+    await repo.cancel(patientId: 'u1', appointmentId: 'apt-1', reason: '  Me surgió un viaje  ');
+    await repo.cancel(patientId: 'u1', appointmentId: 'apt-1', reason: '   ');
+
+    expect(jsonDecode(bodies.first), {'motivo_texto': 'Me surgió un viaje'});
+    expect(bodies.last, isEmpty);
+  });
+
   test('cancelling someone else\'s appointment surfaces the API refusal', () async {
     final repo = _repo(MockClient((_) async => _json({'detail': 'forbidden'}, 403)));
     await expectLater(

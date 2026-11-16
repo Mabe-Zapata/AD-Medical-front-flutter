@@ -100,11 +100,11 @@ class PortalController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> cancel(Appointment appointment) async {
+  Future<void> cancel(Appointment appointment, {String? reason}) async {
     final patient = _session.patient;
     if (patient == null) return;
     await _run(() async {
-      await _cancelAppointment(patientId: patient.id, appointment: appointment);
+      await _cancelAppointment(patientId: patient.id, appointment: appointment, reason: reason);
       _notice = 'Cita ${appointment.id} cancelada. El horario quedó libre.';
     }, overrides: _cancelOverrides);
   }

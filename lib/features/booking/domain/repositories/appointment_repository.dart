@@ -28,6 +28,7 @@ abstract interface class AppointmentRepository {
   /// created since the app started.
   Future<List<Appointment>> appointmentsOf(String patientId);
 
-  /// Cancels an own appointment and releases its slot.
-  Future<Appointment> cancel({required String patientId, required String appointmentId});
+  /// Cancels an own appointment and releases its slot. [reason] is an optional free text the
+  /// backend stores with the cancellation; blank means no reason.
+  Future<Appointment> cancel({required String patientId, required String appointmentId, String? reason});
 }

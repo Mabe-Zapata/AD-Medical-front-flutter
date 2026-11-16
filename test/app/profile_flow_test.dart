@@ -155,6 +155,8 @@ void main() {
               'token_type': 'Bearer',
               'expires_in': 900,
             }, 200);
+          case '/api/v1/public/services':
+            return _json({'items': []}, 200);
           case '/api/v1/appointments':
             return _json({'items': []}, 200);
           case '/api/v1/lab/orders':

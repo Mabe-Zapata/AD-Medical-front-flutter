@@ -7,10 +7,10 @@ class CancelAppointment {
 
   final AppointmentRepository _repository;
 
-  Future<Appointment> call({required String patientId, required Appointment appointment}) {
+  Future<Appointment> call({required String patientId, required Appointment appointment, String? reason}) {
     if (!appointment.holdsSlot) {
       throw const AppError(ErrorKind.conflict, 'only an active appointment can be cancelled');
     }
-    return _repository.cancel(patientId: patientId, appointmentId: appointment.id);
+    return _repository.cancel(patientId: patientId, appointmentId: appointment.id, reason: reason);
   }
 }

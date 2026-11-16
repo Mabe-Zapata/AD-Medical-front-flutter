@@ -41,7 +41,11 @@ void main() {
         MedicalBookingApp(
           dependencies: AppDependencies.api(
             apiBaseUrl: 'http://api.test/api/v1',
-            client: MockClient((_) async => http.Response('{}', 404)),
+            client: MockClient(
+              (request) async => request.url.path == '/api/v1/public/services'
+                  ? http.Response('{"items":[]}', 200, headers: {'content-type': 'application/json'})
+                  : http.Response('{}', 404),
+            ),
             store: store,
             now: () => clock,
           ),

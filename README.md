@@ -39,7 +39,10 @@ Build-time settings (`--dart-define`):
 | Name | Meaning |
 | --- | --- |
 | `API_BASE_URL` | Absolute or origin-relative API root. Empty means demo mode. |
-| `SERVICES_JSON` | Bookable services of the environment: `[{"id":"<uuid>","name":"...","durationMin":20,"basePrice":8}]`. Without it the demo services are used and a real reservation is refused (their ids are not UUIDs of that backend). |
+
+The bookable services are read from `GET /public/services`, which needs no sign-in and returns only the active services. The public landing page shows them to every visitor.
+
+`tools/build_web.mjs` builds with `API_BASE_URL` from the local `.env` (`node tools/build_web.mjs`). `.env` is git-ignored.
 
 ## Ports and URLs
 
@@ -84,7 +87,7 @@ The portal degrades gracefully instead of inventing data:
 | Gap | Behavior in API mode |
 | --- | --- |
 | No "my appointments" / "my orders" listing | Appointments reserved in this session are shown; orders are opened by id (lookup form). |
-| No catalog endpoints | Static catalog; services come from `SERVICES_JSON`. |
+| Public catalog | Branches and lab test types are static content; services come from `GET /public/services` for every visitor. |
 | No payment confirmation | Not shown. |
 | `/me` returns only id, roles, permissions | The patient is shown by email. |
 | Order response lacks dates, doctor and test names | Optional fields; tests are labeled "Prueba N". |
