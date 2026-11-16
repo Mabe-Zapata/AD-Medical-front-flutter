@@ -105,8 +105,11 @@ class HttpAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<Appointment> cancel({required String patientId, required String appointmentId}) async {
-    final json = await _api.post('/appointments/$appointmentId/cancel') as Map<String, dynamic>?;
+  Future<Appointment> cancel({required String patientId, required String appointmentId, String? reason}) async {
+    final text = reason?.trim() ?? '';
+    // The body is optional: only a non-blank patient reason is sent, as motivo_texto.
+    final body = text.isEmpty ? null : {'motivo_texto': text};
+    final json = await _api.post('/appointments/$appointmentId/cancel', body: body) as Map<String, dynamic>?;
     final status = json?['estado'] is String ? _status(json!['estado'] as String) : AppointmentStatus.cancelled;
     final index = _mine.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
     if (index >= 0) return _mine[index] = _mine[index].copyWith(status: status);

@@ -42,6 +42,71 @@ class PortalPage extends StatefulWidget {
   State<PortalPage> createState() => _PortalPageState();
 }
 
+/// The patient's answer to "cancel this appointment?": the optional reason, null when blank.
+class _CancelChoice {
+  const _CancelChoice(this.reason);
+
+  final String? reason;
+}
+
+/// Confirms a cancellation and collects the optional reason. Dismissing it cancels nothing.
+class _CancelDialog extends StatefulWidget {
+  const _CancelDialog();
+
+  @override
+  State<_CancelDialog> createState() => _CancelDialogState();
+}
+
+class _CancelDialogState extends State<_CancelDialog> {
+  static const _maxReasonLength = 1500;
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    final text = _reason.text.trim();
+    Navigator.of(context).pop(_CancelChoice(text.isEmpty ? null : text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('¿Cancelar esta cita?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('El horario quedará libre para otros pacientes.'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reason,
+            maxLength: _maxReasonLength,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (opcional)',
+              helperText: 'Tu médico recibirá este motivo por correo.',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Volver'),
+        ),
+        FilledButton(
+          onPressed: _confirm,
+          child: const Text('Cancelar cita'),
+        ),
+      ],
+    );
+  }
+}
+
 /// Which appointments the list shows.
 enum _Filter {
   all('Todas'),
@@ -182,24 +247,11 @@ class _PortalPageState extends State<PortalPage> {
   }
 
   Future<void> _confirmCancel(Appointment appointment) async {
-    final confirmed = await showDialog<bool>(
+    final choice = await showDialog<_CancelChoice>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Cancelar esta cita?'),
-        content: const Text('El horario quedará libre para otros pacientes.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Cancelar cita'),
-          ),
-        ],
-      ),
+      builder: (context) => const _CancelDialog(),
     );
-    if (confirmed == true) await _controller.cancel(appointment);
+    if (choice != null) await _controller.cancel(appointment, reason: choice.reason);
   }
 
   Future<void> _askRefund(Appointment appointment) async {

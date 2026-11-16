@@ -86,7 +86,7 @@ class DemoAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<Appointment> cancel({required String patientId, required String appointmentId}) async {
+  Future<Appointment> cancel({required String patientId, required String appointmentId, String? reason}) async {
     await _db.simulateLatency();
     final index = _db.appointments.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
     // Like the real API: a missing appointment and someone else's look the same.
