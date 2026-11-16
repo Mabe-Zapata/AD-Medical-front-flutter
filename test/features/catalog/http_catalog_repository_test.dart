@@ -12,14 +12,13 @@ const _fallback = Catalog(branches: [], services: [], testTypes: []);
 http.Response _json(Object body) =>
     http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
 
-HttpCatalogRepository _repo(MockClient client, {required bool signedIn}) => HttpCatalogRepository(
-  ApiClient(client: client, baseUrl: 'http://api.test/api/v1', token: () => signedIn ? 'jwt' : null),
-  isSignedIn: () => signedIn,
+HttpCatalogRepository _repo(MockClient client, {String? token}) => HttpCatalogRepository(
+  ApiClient(client: client, baseUrl: 'http://api.test/api/v1', token: () => token),
   fallback: _fallback,
 );
 
 void main() {
-  test('maps the live services of GET /services, including money as text', () async {
+  test('maps the active services of GET /public/services, including money as text', () async {
     late Uri seen;
     final repo = _repo(
       MockClient((request) async {
@@ -47,12 +46,11 @@ void main() {
           ],
         });
       }),
-      signedIn: true,
     );
 
     final catalog = await repo.fetchCatalog();
 
-    expect(seen.path, '/api/v1/services');
+    expect(seen.path, '/api/v1/public/services');
     expect(catalog.services.map((s) => s.name), ['Consulta general', 'Revisión de resultados']);
     expect(catalog.services.first.basePrice, 25);
     expect(catalog.services.first.needsDoctor, isFalse);
@@ -60,19 +58,30 @@ void main() {
     expect(catalog.services.last.requiresOrder, isTrue);
   });
 
-  test('without a session the public catalog stays empty and never calls the API', () async {
-    var calls = 0;
+  test('a visitor without a session gets the services too: the landing loads before sign-in', () async {
+    final paths = <String>[];
     final repo = _repo(
       MockClient((request) async {
-        calls++;
-        return _json({'items': []});
+        paths.add(request.url.path);
+        return _json({
+          'items': [
+            {
+              'id': 'fd38cc50-24ec-499f-83be-186d2864191e',
+              'nombre': 'Toma de muestra de sangre',
+              'duracion_min': 20,
+              'precio_base': '8.00',
+              'moneda': 'USD',
+              'especialidad_id': null,
+              'requiere_orden_medica': false,
+            },
+          ],
+        });
       }),
-      signedIn: false,
     );
 
     final catalog = await repo.fetchCatalog();
 
-    expect(catalog.services, isEmpty);
-    expect(calls, 0);
+    expect(paths, ['/api/v1/public/services']);
+    expect(catalog.services.single.name, 'Toma de muestra de sangre');
   });
 }

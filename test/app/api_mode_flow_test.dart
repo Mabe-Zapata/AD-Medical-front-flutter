@@ -56,7 +56,7 @@ void main() {
       final backend = MockClient((request) async {
         requests.add('${request.method} ${request.url.path}');
         switch (request.url.path) {
-          case '/api/v1/services':
+          case '/api/v1/public/services':
             return _json({'items': _servicesJson()}, 200);
           case '/api/v1/auth/login':
             return _json({
@@ -192,6 +192,7 @@ void main() {
 
       final bodies = <Map<String, dynamic>>[];
       final backend = MockClient((request) async {
+        if (request.url.path == '/api/v1/public/services') return _json({'items': []}, 200);
         if (request.url.path == '/api/v1/auth/register') {
           bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
           return _json({
@@ -278,6 +279,8 @@ void main() {
       final calls = <Uri>[];
       var accepted = true;
       final backend = MockClient((request) async {
+        // The public catalog is not part of the verification: it is not recorded as a call.
+        if (request.url.path == '/api/v1/public/services') return _json({'items': []}, 200);
         calls.add(request.url);
         return accepted
             ? _json({'verified': true}, 200)

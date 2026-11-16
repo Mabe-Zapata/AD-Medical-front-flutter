@@ -41,7 +41,7 @@ lib/features/<f>/{domain,data,presentation}
 ## Modos demo y API
 
 - Demo (por defecto): datos en memoria, sin red.
-- API: `--dart-define=API_BASE_URL=/api/v1`; los servicios reservables se leen de `GET /services` (requiere sesión). Se sirve con `node tools/serve_web.mjs` (proxy `/api` → backend, sin CORS).
+- API: `--dart-define=API_BASE_URL=/api/v1`; los servicios reservables se leen de `GET /public/services` (público, sin sesión; solo servicios activos). Se sirve con `node tools/serve_web.mjs` (proxy `/api` → backend, sin CORS).
 - En Windows con Git Bash compila con `MSYS_NO_PATHCONV=1`; si no, `/api/v1` se convierte en una ruta de Windows y todo falla con "No se pudo conectar".
 - Una funcionalidad nueva se implementa **en ambos modos** (repositorio `demo_*` y `http_*`) detrás del mismo puerto.
 
@@ -58,7 +58,7 @@ lib/features/<f>/{domain,data,presentation}
 | Falta | Qué hace el portal |
 | --- | --- |
 | `GET /appointments` no trae servicio, precio ni motivo | Las citas de visitas anteriores se muestran como "Cita de laboratorio" sin precio; las reservadas en esta sesión conservan sus datos |
-| Catálogo público | Sucursales y pruebas de laboratorio son contenido estático; los servicios vienen de `GET /services` solo con sesión (la landing no los muestra a visitantes anónimos) |
+| Catálogo público | Sucursales y pruebas de laboratorio son contenido estático; los servicios vienen de `GET /public/services` (público; la landing los muestra también a visitantes) |
 | El listado de facturas/pagos no existe: `factura_id` y `pago_id` solo se conocen si el pago se abrió en esta pestaña | El portal los recuerda en `sessionStorage` (`PaymentTrailStore`): sobreviven a recargar pero no a cerrar la pestaña; "Verificar pago" y "Pedir reembolso" solo aparecen para pagos iniciados en esa pestaña |
 | Pagar (webhook o reconciliación) deja el pago `CONFIRMADO` y la factura `PAGADA`, pero la **cita sigue en `PENDIENTE_PAGO`**: ningún camino del backend la pasa a `CONFIRMADA` (verificado leyendo el código, no probado exhaustivamente) | La tarjeta muestra "Pago confirmado" cuando el backend lo dice, aunque la cita siga pendiente |
 | Guardar una tarjeta sin pagar (`POST /me/payment-methods/setup-intents`) | Sin implementar: la tarjeta se guarda desde el formulario de pago de Stripe (el backend pide `setup_future_usage`). Falta montar un SetupIntent con Stripe Elements |

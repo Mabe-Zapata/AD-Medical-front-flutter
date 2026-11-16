@@ -164,7 +164,6 @@ class AppDependencies {
         services == null
             ? HttpCatalogRepository(
                 api,
-                isSignedIn: () => session.token != null,
                 fallback: Catalog(
                   branches: content.branches,
                   services: const [],

@@ -42,7 +42,7 @@ void main() {
           dependencies: AppDependencies.api(
             apiBaseUrl: 'http://api.test/api/v1',
             client: MockClient(
-              (request) async => request.url.path == '/api/v1/services'
+              (request) async => request.url.path == '/api/v1/public/services'
                   ? http.Response('{"items":[]}', 200, headers: {'content-type': 'application/json'})
                   : http.Response('{}', 404),
             ),

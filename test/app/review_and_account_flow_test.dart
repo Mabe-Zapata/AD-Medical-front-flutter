@@ -55,7 +55,7 @@ MockClient _backend({required List<Map<String, dynamic>> orders}) => MockClient(
   switch (request.url.path) {
     case '/api/v1/auth/login':
       return _json({'access_token': 'jwt', 'token_type': 'Bearer', 'expires_in': 900}, 200);
-    case '/api/v1/services':
+    case '/api/v1/public/services':
       return _json({'items': _servicesJson()}, 200);
     case '/api/v1/me':
       return _json({
