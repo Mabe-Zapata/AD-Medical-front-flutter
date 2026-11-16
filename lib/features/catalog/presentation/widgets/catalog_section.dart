@@ -59,10 +59,7 @@ class CatalogSection extends StatelessWidget {
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Tokens.slate900),
               ),
               const SizedBox(height: 20),
-              _grid(
-                columnsFor: (width) => width >= 900 ? 2 : 1,
-                children: [for (final service in services) _ServiceRow(service, onBook: () => onBook(service.id))],
-              ),
+              ServiceCarousel(services: services, onBook: onBook),
             ],
           ),
         ),
@@ -108,6 +105,124 @@ class _TestCard extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Bookable services, four per page: a 2x2 group on wide screens and one column on phones.
+/// Arrows and dots move between the groups.
+class ServiceCarousel extends StatefulWidget {
+  const ServiceCarousel({super.key, required this.services, required this.onBook, this.pageSize = 4});
+
+  final List<MedicalService> services;
+  final void Function(String serviceId) onBook;
+  final int pageSize;
+
+  @override
+  State<ServiceCarousel> createState() => _ServiceCarouselState();
+}
+
+class _ServiceCarouselState extends State<ServiceCarousel> {
+  static const _rowHeight = 112.0;
+  static const _gap = 12.0;
+
+  final _controller = PageController();
+  int _page = 0;
+
+  int get _pageCount => (widget.services.length / widget.pageSize).ceil();
+
+  void _goTo(int page) => _controller.animateToPage(
+    page,
+    duration: const Duration(milliseconds: 300),
+    curve: Curves.easeOut,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.services.isEmpty) {
+      return const Text(
+        'Inicia sesión para ver los servicios que puedes reservar.',
+        style: TextStyle(fontSize: 15, height: 1.6, color: Tokens.slate600),
+      );
+    }
+    final wide = isWide(context);
+    final columns = wide ? 2 : 1;
+    final rows = wide ? 2 : 4;
+    final pageHeight = rows * _rowHeight + (rows - 1) * _gap;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: pageHeight,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: _pageCount,
+            onPageChanged: (page) => setState(() => _page = page),
+            itemBuilder: (context, page) {
+              final items = widget.services.skip(page * widget.pageSize).take(widget.pageSize).toList();
+              return Column(
+                children: [
+                  for (var row = 0; row < rows; row++) ...[
+                    if (row > 0) const SizedBox(height: _gap),
+                    SizedBox(
+                      height: _rowHeight,
+                      child: Row(
+                        children: [
+                          for (var column = 0; column < columns; column++) ...[
+                            if (column > 0) const SizedBox(width: _gap),
+                            Expanded(child: _slot(items, row * columns + column)),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              tooltip: 'Grupo anterior',
+              onPressed: _page > 0 ? () => _goTo(_page - 1) : null,
+              icon: const Icon(Icons.chevron_left),
+            ),
+            for (var page = 0; page < _pageCount; page++)
+              Semantics(
+                label: 'Grupo ${page + 1} de $_pageCount',
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: page == _page ? Tokens.orangeDeep : Tokens.slate500.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+            IconButton(
+              tooltip: 'Grupo siguiente',
+              onPressed: _page < _pageCount - 1 ? () => _goTo(_page + 1) : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _slot(List<MedicalService> items, int index) {
+    if (index >= items.length) return const SizedBox.shrink();
+    final service = items[index];
+    return _ServiceRow(service, onBook: () => widget.onBook(service.id));
+  }
 }
 
 class _ServiceRow extends StatelessWidget {

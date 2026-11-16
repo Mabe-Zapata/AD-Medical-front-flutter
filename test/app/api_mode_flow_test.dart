@@ -10,6 +10,21 @@ import 'package:medicalbooking_portal/core/domain/personal_data.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
+import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
+
+/// The services `GET /services` would return: the same demo catalog, in the backend's JSON shape.
+List<Map<String, dynamic>> _servicesJson() => [
+  for (final s in DemoDatabase(latency: Duration.zero).services)
+    {
+      'id': s.id,
+      'nombre': s.name,
+      'duracion_min': s.durationMin,
+      'precio_base': s.basePrice.toStringAsFixed(2),
+      'moneda': s.currency,
+      'especialidad_id': s.specialtyId,
+      'requiere_orden_medica': s.requiresOrder,
+    },
+];
 
 http.Response _json(Object body, int status) => http.Response(
   jsonEncode(body),
@@ -41,6 +56,8 @@ void main() {
       final backend = MockClient((request) async {
         requests.add('${request.method} ${request.url.path}');
         switch (request.url.path) {
+          case '/api/v1/services':
+            return _json({'items': _servicesJson()}, 200);
           case '/api/v1/auth/login':
             return _json({
               'access_token': 'jwt',

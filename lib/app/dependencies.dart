@@ -21,6 +21,7 @@ import 'package:medicalbooking_portal/features/booking/domain/usecases/list_doct
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_my_appointments.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_catalog_repository.dart';
+import 'package:medicalbooking_portal/features/catalog/data/repositories/http_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/static_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/usecases/get_catalog.dart';
@@ -125,9 +126,8 @@ class AppDependencies {
     );
   }
 
-  /// [apiBaseUrl] is absolute or origin-relative (`/api/v1`). [services] are the bookable services
-  /// of the target environment; without them the demo services are used and a real reservation
-  /// will be refused because their ids are not UUIDs of that backend.
+  /// [apiBaseUrl] is absolute or origin-relative (`/api/v1`). The bookable services come from
+  /// `GET /services`. [services] is a test override: when given, it replaces that call.
   factory AppDependencies.api({
     required String apiBaseUrl,
     List<MedicalService>? services,
@@ -161,13 +161,23 @@ class AppDependencies {
         load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
       ),
       getCatalog: GetCatalog(
-        StaticCatalogRepository(
-          Catalog(
-            branches: content.branches,
-            services: services ?? content.services,
-            testTypes: content.testTypes,
-          ),
-        ),
+        services == null
+            ? HttpCatalogRepository(
+                api,
+                isSignedIn: () => session.token != null,
+                fallback: Catalog(
+                  branches: content.branches,
+                  services: const [],
+                  testTypes: content.testTypes,
+                ),
+              )
+            : StaticCatalogRepository(
+                Catalog(
+                  branches: content.branches,
+                  services: services,
+                  testTypes: content.testTypes,
+                ),
+              ),
       ),
       getDaySlots: GetDaySlots(appointments),
       listSpecialties: ListSpecialties(appointments),
