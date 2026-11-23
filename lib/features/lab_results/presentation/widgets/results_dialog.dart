@@ -122,7 +122,24 @@ class _ResultsTable extends StatelessWidget {
           r.name,
           valueLabel(r),
           referenceLabel(r),
-        ], _interpretation(r.interpretation)),
+        ], _interpretationCell(r)),
+    ],
+  );
+
+  /// The effective reading, with a note when the laboratory corrected the system's one.
+  Widget _interpretationCell(AnalyteResult r) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _interpretation(r.interpretation),
+      if (r.corrected)
+        const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text(
+            'Corregido por el laboratorio',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Tokens.muted),
+          ),
+        ),
     ],
   );
 

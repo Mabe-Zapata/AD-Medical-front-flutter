@@ -56,6 +56,10 @@ HttpLabResultsRepository _repo({
               'referencia_min': 12.0,
               'referencia_max': 16.0,
               'interpretacion': 'DENTRO_REFERENCIA',
+              'interpretacion_sistema': 'ALTO',
+              'revisado': true,
+              'corregido': true,
+              'motivo_correccion': 'Lectura corregida por el laboratorio',
             },
             {
               'id': 'r2',
@@ -139,6 +143,14 @@ void main() {
 
     expect((result.referenceMin, result.referenceMax), (12.0, 16.0));
     expect(result.interpretation, Interpretation.withinReference);
+  });
+
+  test('a corrected reading is flagged, and the reading the patient sees is the corrected one', () async {
+    final results = (await _repo().ordersOf('u1')).single.details.first.validatedResults;
+
+    expect(results.first.corrected, isTrue);
+    expect(results.first.interpretation, Interpretation.withinReference);
+    expect(results.last.corrected, isFalse);
   });
 
   test('no orders is an empty list', () async {
