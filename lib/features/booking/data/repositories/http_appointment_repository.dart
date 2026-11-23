@@ -4,6 +4,7 @@ import 'package:medicalbooking_portal/core/http/api_client.dart';
 import 'package:medicalbooking_portal/core/http/idempotency_key.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment_doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
@@ -124,7 +125,8 @@ class HttpAppointmentRepository implements AppointmentRepository {
     final end = DateTime.parse(json['fin'] as String).toUtc();
     final status = _status(json['estado'] as String);
     final known = _mine.where((a) => a.id == id && a.patientId == patientId).firstOrNull;
-    if (known == null) return _placeholder(id, patientId, start, end, status);
+    final doctor = _listedDoctor(json['medico']);
+    if (known == null) return _placeholder(id, patientId, start, end, status, doctor: doctor);
     return Appointment(
       id: id,
       patientId: patientId,
@@ -134,25 +136,44 @@ class HttpAppointmentRepository implements AppointmentRepository {
       reason: known.reason,
       bookedAt: known.bookedAt,
       reservationExpiresAt: known.reservationExpiresAt,
+      doctor: doctor,
     );
   }
 
   /// The listing does not say which service it was, so it is shown as a generic laboratory appointment with
   /// no price (a price of zero means "unknown").
-  Appointment _placeholder(String id, String patientId, DateTime start, DateTime end, AppointmentStatus status) =>
-      Appointment(
-        id: id,
-        patientId: patientId,
-        service: MedicalService(
-          id: '',
-          name: 'Cita de laboratorio',
-          durationMin: end.difference(start).inMinutes,
-          basePrice: 0,
-        ),
-        slot: TimeSlot(id: id, startUtc: start, endUtc: end, status: SlotStatus.reserved, doctorId: ''),
-        status: status,
-        bookedAt: start,
-      );
+  Appointment _placeholder(
+    String id,
+    String patientId,
+    DateTime start,
+    DateTime end,
+    AppointmentStatus status, {
+    AppointmentDoctor? doctor,
+  }) => Appointment(
+    id: id,
+    patientId: patientId,
+    service: MedicalService(
+      id: '',
+      name: 'Cita de laboratorio',
+      durationMin: end.difference(start).inMinutes,
+      basePrice: 0,
+    ),
+    slot: TimeSlot(id: id, startUtc: start, endUtc: end, status: SlotStatus.reserved, doctorId: ''),
+    status: status,
+    bookedAt: start,
+    doctor: doctor,
+  );
+
+  /// `medico` of a listed appointment: the doctor's contact data, absent when the API does not name one.
+  AppointmentDoctor? _listedDoctor(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    return AppointmentDoctor(
+      id: json['id'] as String,
+      name: json['nombre'] as String,
+      registration: json['registro_profesional'] as String?,
+      phone: json['telefono'] as String?,
+    );
+  }
 
   TimeSlot _slot(Map<String, dynamic> json) => TimeSlot(
     id: json['horario_id'] as String,

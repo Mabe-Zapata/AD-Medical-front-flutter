@@ -39,6 +39,7 @@ class PortalController extends ChangeNotifier {
     ErrorKind.forbidden: 'No se pudo iniciar el pago de esta cita.',
     ErrorKind.conflict: 'Ocurrió un error y el pago no se ha completado. Si ya pagaste, espera unos minutos o contacta al laboratorio.',
     ErrorKind.unavailable: 'El pago en línea no está disponible por ahora. Inténtalo más tarde o contacta al laboratorio.',
+    ErrorKind.readOnly: 'No podemos registrar pagos por ahora. Inténtalo más tarde o contacta al laboratorio.',
   };
 
   static const _cancelOverrides = {

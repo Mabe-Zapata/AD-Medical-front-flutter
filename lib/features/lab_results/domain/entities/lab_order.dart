@@ -24,6 +24,7 @@ class AnalyteResult {
     this.sampleType,
     this.validatedAt,
     this.validated,
+    this.corrected = false,
   });
 
   final String name;
@@ -36,6 +37,9 @@ class AnalyteResult {
   final String? method;
   final String? sampleType;
   final DateTime? validatedAt;
+
+  /// True when the laboratory changed the system's reading; [interpretation] is then the corrected one.
+  final bool corrected;
 
   /// Explicit flag for sources that do not send a validation date. The real API only returns
   /// results the patient may read, so its mapper sets this to true.

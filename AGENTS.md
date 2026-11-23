@@ -87,7 +87,7 @@ Si el backend cierra una brecha, actualiza el repositorio `http_*`, quita la lim
 
 ## Errores (paridad con Angular)
 
-`invalidCredentials, unauthenticated, forbidden, notFound, conflict, validation, rateLimited, network, unavailable (502/503/504), notPatient, unknown`.
+`invalidCredentials, unauthenticated, forbidden, notFound, conflict, validation, rateLimited, network, unavailable (502/503/504), readOnly (503 con `code: READ_ONLY_MODE`), notPatient, unknown`.
 Los textos en español salen de `describeError` (`shared/presentation/error_message.dart`); no escribas mensajes sueltos en las páginas.
 
 ## Mensajes de error

@@ -22,6 +22,8 @@ const _messages = <ErrorKind, String>{
   ErrorKind.network:
       'No pudimos conectarnos. Revisa tu internet y vuelve a intentarlo.',
   ErrorKind.unavailable: 'El servicio está tardando más de lo normal. Inténtalo de nuevo en unos minutos.',
+  ErrorKind.readOnly:
+      'El sistema está en modo de solo lectura por ahora, así que no podemos completar esto. Inténtalo de nuevo más tarde.',
   ErrorKind.notPatient:
       'Esta cuenta es del personal. Ingresa por el sistema interno.',
   ErrorKind.unknown: 'Algo salió mal de nuestro lado. Inténtalo de nuevo; si sigue pasando, contacta al laboratorio.',

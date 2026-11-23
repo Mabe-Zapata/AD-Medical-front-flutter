@@ -74,6 +74,7 @@ class HttpLabResultsRepository implements LabResultsRepository {
               referenceMax: (r['referencia_max'] as num?)?.toDouble(),
               interpretation: _interpretation(r['interpretacion'] as String?),
               validated: true,
+              corrected: r['corregido'] == true,
             ),
           );
     }

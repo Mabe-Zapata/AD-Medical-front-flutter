@@ -61,6 +61,35 @@ void main() {
     expect(branchTime(slots.single.startUtc).hour, 9);
   });
 
+  test('a listed appointment carries its doctor contact, and no doctor when the API omits it', () async {
+    final repo = _repo(
+      MockClient((request) async => _json({
+        'items': [
+          {
+            'id': 'apt-1',
+            'estado': 'CONFIRMADA',
+            'inicio': '2026-11-04T14:00:00+00:00',
+            'fin': '2026-11-04T14:30:00+00:00',
+            'medico': {'id': 'doc-1', 'nombre': 'Dra. Lucía Vera', 'registro_profesional': 'JVPM-1', 'telefono': '2222-3333'},
+          },
+          {
+            'id': 'apt-2',
+            'estado': 'CANCELADA',
+            'inicio': '2026-11-05T14:00:00+00:00',
+            'fin': '2026-11-05T14:30:00+00:00',
+          },
+        ],
+      }, 200)),
+    );
+
+    final listed = await repo.appointmentsOf('u1');
+
+    expect(listed[0].doctor?.name, 'Dra. Lucía Vera');
+    expect(listed[0].doctor?.registration, 'JVPM-1');
+    expect(listed[0].doctor?.phone, '2222-3333');
+    expect(listed[1].doctor, isNull);
+  });
+
   test('reserves with a fresh Idempotency-Key and remembers the appointment', () async {
     late http.Request seen;
     final repo = _repo(

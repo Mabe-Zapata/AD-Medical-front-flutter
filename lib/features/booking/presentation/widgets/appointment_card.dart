@@ -56,9 +56,15 @@ class AppointmentCard extends StatelessWidget {
     final start = branchTime(a.slot.startUtc);
     final expires = a.reservationExpiresAt;
     final price = a.service.basePrice > 0 ? money(a.service.basePrice, a.service.currency) : null;
+    final doctor = a.doctor;
+    // The doctor and how to reach them; the phone appears only when the API sends one.
+    final doctorLine = doctor == null
+        ? null
+        : [doctor.name, if (doctor.phone != null) 'Tel. ${doctor.phone}'].join(' · ');
     final details = [
       '${timeLabel(start)} · ${a.service.durationMin} min',
       ?price,
+      ?doctorLine,
       if (a.status == AppointmentStatus.confirmed) 'Pagada',
       if (a.reason != null) a.reason!,
       'Ref: ${appointmentRef(a.id)}',
