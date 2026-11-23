@@ -1,6 +1,7 @@
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment_doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
@@ -21,6 +22,11 @@ class DemoAppointmentRepository implements AppointmentRepository {
     Doctor(id: 'demo-doctor-1', name: 'Dr. Andrés Mora', specialties: [_medicinaGeneral], durationMin: 30),
     Doctor(id: 'demo-doctor-2', name: 'Dra. Lucía Vera', specialties: [_hematologia], durationMin: 30),
   ];
+
+  static AppointmentDoctor? _contactOf(String? doctorId) {
+    final doctor = _doctors.where((doctor) => doctor.id == doctorId).firstOrNull;
+    return doctor == null ? null : AppointmentDoctor(id: doctor.id, name: doctor.name);
+  }
 
   @override
   Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId}) async {
@@ -74,6 +80,8 @@ class DemoAppointmentRepository implements AppointmentRepository {
       reason: reason,
       bookedAt: now,
       reservationExpiresAt: now.add(Appointment.reservationHold),
+      // The demo has no real contact data, so the phone stays unknown on purpose.
+      doctor: _contactOf(fresh.doctorId),
     );
     _db.appointments.add(appointment);
     return Reserved(appointment);

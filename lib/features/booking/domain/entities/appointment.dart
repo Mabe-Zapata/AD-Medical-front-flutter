@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment_doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 
@@ -18,6 +19,7 @@ class Appointment {
     required this.bookedAt,
     this.reason,
     this.reservationExpiresAt,
+    this.doctor,
   });
 
   final String id;
@@ -28,6 +30,9 @@ class Appointment {
   final String? reason;
   final DateTime bookedAt;
   final DateTime? reservationExpiresAt;
+
+  /// Who attends the appointment, as the listing says it; null when the API does not name a doctor.
+  final AppointmentDoctor? doctor;
 
   /// Active appointments hold their slot (see UX_citas_horario_activa).
   bool get holdsSlot =>
@@ -42,5 +47,6 @@ class Appointment {
     bookedAt: bookedAt,
     reason: reason,
     reservationExpiresAt: reservationExpiresAt,
+    doctor: doctor,
   );
 }
