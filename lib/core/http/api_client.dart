@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 
+/// The code the backend sends with a 503 while its primary database is unreachable.
+const _readOnlyCode = 'READ_ONLY_MODE';
+
 /// Thin wrapper over `http.Client` for the backend REST API: base URL, bearer token,
 /// JSON in and out, and RFC 9457 problem+json mapped to [AppError].
 class ApiClient {
@@ -120,11 +123,13 @@ class ApiClient {
   AppError _problem(http.Response response, {required bool authenticated}) {
     String detail = 'HTTP ${response.statusCode}';
     String? correlationId;
+    String? code;
     try {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body is Map) {
         if (body['detail'] is String) detail = body['detail'] as String;
         if (body['correlation_id'] is String) correlationId = body['correlation_id'] as String;
+        if (body['code'] is String) code = body['code'] as String;
       }
     } on FormatException {
       // Not JSON (for example an Nginx error page): the status code is enough.
@@ -136,6 +141,7 @@ class ApiClient {
       409 => ErrorKind.conflict,
       422 => ErrorKind.validation,
       429 => ErrorKind.rateLimited,
+      503 when code == _readOnlyCode => ErrorKind.readOnly,
       // Nginx or the load balancer answer these when no replica is up, or the database is down.
       502 || 503 || 504 => ErrorKind.unavailable,
       _ => ErrorKind.unknown,

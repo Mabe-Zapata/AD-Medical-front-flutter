@@ -11,6 +11,9 @@ enum ErrorKind {
   network,
   unavailable,
 
+  /// The API is in read-only mode because its primary database is unreachable (503 READ_ONLY_MODE).
+  readOnly,
+
   /// A staff account tried to use the patient portal.
   notPatient,
   unknown,

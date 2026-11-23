@@ -90,6 +90,11 @@ void main() {
       expect((await failWith(500)).kind, ErrorKind.unknown);
     });
 
+    test('a 503 with the read-only code is read-only, not a slow service', () async {
+      final api = clientFor(MockClient((_) async => _json({'detail': 'x', 'code': 'READ_ONLY_MODE'}, 503)));
+      await expectLater(api.get('/x'), throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.readOnly)));
+    });
+
     test('a 401 on login means wrong credentials, elsewhere an expired session', () async {
       expect((await failWith(401, authenticated: false, token: null)).kind, ErrorKind.invalidCredentials);
       expect((await failWith(401)).kind, ErrorKind.unauthenticated);
