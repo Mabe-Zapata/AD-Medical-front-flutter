@@ -76,7 +76,7 @@ class AppointmentCard extends StatelessWidget {
         TextButton(onPressed: onCheckPayment, child: const Text('Verificar pago')),
       if (onRefund != null && a.status == AppointmentStatus.cancelled)
         TextButton(onPressed: onRefund, child: const Text('Pedir reembolso')),
-      if (onCancel != null && a.holdsSlot && !inProcess)
+      if (onCancel != null && a.cancellableAt(DateTime.now()) && !inProcess)
         TextButton(
           onPressed: onCancel,
           style: TextButton.styleFrom(foregroundColor: Tokens.danger),

@@ -34,9 +34,16 @@ class Appointment {
   /// Who attends the appointment, as the listing says it; null when the API does not name a doctor.
   final AppointmentDoctor? doctor;
 
+  /// Patients and doctors may cancel until this long after the start; the API enforces the same rule.
+  static const cancellationWindow = Duration(hours: 1);
+
   /// Active appointments hold their slot (see UX_citas_horario_activa).
   bool get holdsSlot =>
       status == AppointmentStatus.pendingPayment || status == AppointmentStatus.confirmed;
+
+  /// Active and still inside the cancellation window at [now].
+  bool cancellableAt(DateTime now) =>
+      holdsSlot && !now.toUtc().isAfter(slot.startUtc.add(cancellationWindow));
 
   Appointment copyWith({AppointmentStatus? status}) => Appointment(
     id: id,
