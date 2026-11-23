@@ -7,9 +7,17 @@ class CancelAppointment {
 
   final AppointmentRepository _repository;
 
-  Future<Appointment> call({required String patientId, required Appointment appointment, String? reason}) {
+  Future<Appointment> call({
+    required String patientId,
+    required Appointment appointment,
+    String? reason,
+    DateTime? now,
+  }) {
     if (!appointment.holdsSlot) {
       throw const AppError(ErrorKind.conflict, 'only an active appointment can be cancelled');
+    }
+    if (!appointment.cancellableAt(now ?? DateTime.now())) {
+      throw const AppError(ErrorKind.conflict, 'the cancellation window has closed');
     }
     return _repository.cancel(patientId: patientId, appointmentId: appointment.id, reason: reason);
   }

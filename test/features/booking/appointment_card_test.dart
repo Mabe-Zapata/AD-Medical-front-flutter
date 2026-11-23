@@ -11,7 +11,7 @@ Widget _card({required bool processing}) {
     id: 'c1',
     patientId: 'u1',
     service: db.services.first,
-    slot: db.slotAt(DateTime.now(), 9, 0),
+    slot: db.slotAt(DateTime.now().add(const Duration(days: 1)), 9, 0),
     status: AppointmentStatus.pendingPayment,
     bookedAt: DateTime.now().toUtc(),
   );
@@ -36,7 +36,7 @@ void main() {
       id: 'c2',
       patientId: 'u1',
       service: db.services.first,
-      slot: db.slotAt(DateTime.now(), 9, 0),
+      slot: db.slotAt(DateTime.now().add(const Duration(days: 1)), 9, 0),
       status: AppointmentStatus.confirmed,
       bookedAt: DateTime.now().toUtc(),
       doctor: const AppointmentDoctor(id: 'd1', name: 'Dra. Lucía Vera', phone: '2222-3333'),

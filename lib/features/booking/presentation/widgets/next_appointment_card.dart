@@ -37,7 +37,7 @@ class NextAppointmentCard extends StatelessWidget {
     final price = a.service.basePrice > 0 ? money(a.service.basePrice, a.service.currency) : null;
     final showPay = onPay != null && pending && !inProcess;
     final showCheck = onCheckPayment != null && inProcess;
-    final showCancel = onCancel != null && a.holdsSlot && !inProcess;
+    final showCancel = onCancel != null && a.cancellableAt(DateTime.now()) && !inProcess;
     final note = paid
         ? 'Tu pago está confirmado. El laboratorio confirmará tu cita.'
         : inProcess
