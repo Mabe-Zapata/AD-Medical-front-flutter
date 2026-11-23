@@ -8,7 +8,9 @@ import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.d
 abstract interface class AppointmentRepository {
   /// [day] is a branch calendar day; only its year/month/day are used. [doctorId] keeps only that doctor's slots.
   /// The real API only returns the free slots; the demo also returns the taken ones.
-  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId});
+  /// The free slots of one day. A service offers only its own window: sample collection in the
+  /// morning, consultations in the afternoon.
+  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId, String? serviceId});
 
   /// The medical specialties the patient can choose from.
   Future<List<Specialty>> specialties();

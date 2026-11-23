@@ -6,8 +6,8 @@ class GetDaySlots {
 
   final AppointmentRepository _repository;
 
-  Future<List<TimeSlot>> call(DateTime day, {String? doctorId}) async {
-    final slots = await _repository.slotsForDay(day, doctorId: doctorId);
+  Future<List<TimeSlot>> call(DateTime day, {String? doctorId, String? serviceId}) async {
+    final slots = await _repository.slotsForDay(day, doctorId: doctorId, serviceId: serviceId);
     return [...slots]..sort((a, b) => a.startUtc.compareTo(b.startUtc));
   }
 }

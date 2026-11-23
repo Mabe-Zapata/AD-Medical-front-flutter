@@ -212,7 +212,11 @@ class BookingController extends ChangeNotifier {
     _slotsError = null;
     _notify();
     try {
-      _slots = await _getDaySlots(_day, doctorId: doctorFirst ? _doctor?.id : null);
+      _slots = await _getDaySlots(
+        _day,
+        doctorId: doctorFirst ? _doctor?.id : null,
+        serviceId: _service.id,
+      );
     } catch (error) {
       _slots = const [];
       _slotsError = describeError(error);
