@@ -23,7 +23,7 @@ class HttpAppointmentRepository implements AppointmentRepository {
   final List<Appointment> _mine = [];
 
   @override
-  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId}) async {
+  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId, String? serviceId}) async {
     final from = utcFromBranch(day.year, day.month, day.day, 0, 0);
     final json =
         await _api.get(
@@ -32,6 +32,7 @@ class HttpAppointmentRepository implements AppointmentRepository {
                 'desde': _offsetIso(from),
                 'hasta': _offsetIso(from.add(const Duration(days: 1))),
                 'medico_id': ?doctorId,
+                'servicio_id': ?serviceId,
               },
             )
             as Map<String, dynamic>;

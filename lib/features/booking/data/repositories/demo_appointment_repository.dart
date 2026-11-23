@@ -29,14 +29,26 @@ class DemoAppointmentRepository implements AppointmentRepository {
   }
 
   @override
-  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId}) async {
+  Future<List<TimeSlot>> slotsForDay(DateTime day, {String? doctorId, String? serviceId}) async {
     await _db.simulateLatency();
     final doctor = doctorId ?? _doctors.first.id;
+    final window = _windowOf(serviceId);
     return [
       for (var i = 0; i < DemoDatabase.slotsPerDay; i++)
-        _db.slotForDoctor(day, 8 + i ~/ 2, i.isEven ? 0 : 30, doctorId: doctor),
+        if (window == null || _inWindow(8 + i ~/ 2, window))
+          _db.slotForDoctor(day, 8 + i ~/ 2, i.isEven ? 0 : 30, doctorId: doctor),
     ];
   }
+
+  /// Same windows as the backend: sample collection 08:00 to 10:00, consultations from 12:00.
+  String? _windowOf(String? serviceId) {
+    if (serviceId == null) return null;
+    final service = _db.services.where((item) => item.id == serviceId).firstOrNull;
+    if (service == null) return null;
+    return service.name.startsWith('Toma de muestra') ? 'MANANA' : 'TARDE';
+  }
+
+  static bool _inWindow(int hour, String window) => window == 'MANANA' ? hour >= 8 && hour < 10 : hour >= 12 && hour < 17;
 
   @override
   Future<List<Specialty>> specialties() async {

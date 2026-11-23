@@ -61,6 +61,20 @@ void main() {
     expect(branchTime(slots.single.startUtc).hour, 9);
   });
 
+  test('asks the availability of the service window, so only its own hours come back', () async {
+    late Uri seen;
+    final repo = _repo(
+      MockClient((request) async {
+        seen = request.url;
+        return _json({'items': <Map<String, dynamic>>[]}, 200);
+      }),
+    );
+
+    await repo.slotsForDay(DateTime(2026, 11, 4), serviceId: _serviceId);
+
+    expect(seen.queryParameters['servicio_id'], _serviceId);
+  });
+
   test('a listed appointment carries its doctor contact, and no doctor when the API omits it', () async {
     final repo = _repo(
       MockClient((request) async => _json({
