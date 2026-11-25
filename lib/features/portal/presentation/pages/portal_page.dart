@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_dialog.dart';
@@ -73,38 +74,64 @@ class _CancelDialogState extends State<_CancelDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('¿Cancelar esta cita?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('El horario quedará libre para otros pacientes.'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _reason,
-            maxLength: _maxReasonLength,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Motivo (opcional)',
-              helperText: 'Tu médico recibirá este motivo por correo.',
+  Widget build(BuildContext context) => Dialog(
+    backgroundColor: Colors.white,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: Tokens.danger.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.event_busy_outlined, color: Tokens.danger, size: 28),
             ),
-          ),
-        ],
+            const SizedBox(height: 18),
+            const Text(
+              '¿Cancelar esta cita?',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Tokens.slate900),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'El horario quedará libre para otros pacientes.',
+              style: TextStyle(fontSize: 15, height: 1.5, color: Tokens.muted),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _reason,
+              maxLength: _maxReasonLength,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (opcional)',
+                helperText: 'Tu médico recibirá este motivo por correo.',
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Volver'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: GradientButton(label: 'Cancelar cita', onPressed: _confirm)),
+              ],
+            ),
+          ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Volver'),
-        ),
-        FilledButton(
-          onPressed: _confirm,
-          child: const Text('Cancelar cita'),
-        ),
-      ],
-    );
-  }
+    ),
+  );
 }
 
 /// Which appointments the list shows.
@@ -148,6 +175,7 @@ class _PortalPageState extends State<PortalPage> {
       startCheckout: deps.startCheckout,
       getCheckoutStatus: deps.getCheckoutStatus,
       requestRefund: deps.requestRefund,
+      getRefundStatus: deps.getRefundStatus,
       getSavedCard: deps.getSavedCard,
       removeSavedCard: deps.removeSavedCard,
       startCardSetup: deps.startCardSetup,
@@ -365,7 +393,9 @@ class _PortalPageState extends State<PortalPage> {
             processing: _controller.isProcessing(_featured!),
             paid: _controller.isPaid(_featured!),
             onPay: _controller.working ? null : () => _pay(_featured!),
-            onCheckPayment: _controller.working || !_controller.canCheckPayment(_featured!) ? null : () => _pay(_featured!),
+            onCheckPayment: _controller.working || !_controller.canCheckPayment(_featured!)
+                ? null
+                : () => _controller.checkPayment(_featured!),
             onCancel: _controller.working ? null : () => _confirmCancel(_featured!),
           ),
           const SizedBox(height: 20),
@@ -409,11 +439,18 @@ class _PortalPageState extends State<PortalPage> {
       ),
       const SizedBox(height: 20),
       if (notice != null) ...[
-        InfoBanner(message: notice, color: Tokens.success, icon: Icons.check_circle_outline),
+        InfoBanner(
+          message: notice,
+          color: Tokens.success,
+          icon: Icons.check_circle_outline,
+          onDismiss: _controller.dismissNotice,
+          actionLabel: _controller.refundPending ? 'Verificar reembolso' : null,
+          onAction: _controller.refundPending ? _controller.checkRefund : null,
+        ),
         const SizedBox(height: 16),
       ],
       if (error != null) ...[
-        ErrorBanner(error: error, onRetry: _controller.working ? null : _controller.load),
+        ErrorBanner(error: error, onRetry: _controller.working ? null : _controller.load, onDismiss: _controller.dismissError),
         const SizedBox(height: 16),
       ],
       if (_controller.loading)
@@ -488,7 +525,7 @@ class _PortalPageState extends State<PortalPage> {
               : () => _confirmCancel(appointment),
           onCheckPayment: _controller.working || !_controller.canCheckPayment(appointment)
               ? null
-              : () => _pay(appointment),
+              : () => _controller.checkPayment(appointment),
           onRefund: _controller.working || !_controller.canRefund(appointment)
               ? null
               : () => _askRefund(appointment),

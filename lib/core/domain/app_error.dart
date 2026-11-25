@@ -21,7 +21,7 @@ enum ErrorKind {
 
 /// Error raised by the domain or data layers. The UI decides how to word it.
 class AppError implements Exception {
-  const AppError(this.kind, this.message, {this.correlationId, this.status});
+  const AppError(this.kind, this.message, {this.correlationId, this.status, this.code});
 
   final ErrorKind kind;
 
@@ -31,6 +31,9 @@ class AppError implements Exception {
   /// Correlation id the backend returned, so support can find the request in the logs.
   final String? correlationId;
   final int? status;
+
+  /// Stable reason the backend sends for some errors (for example USED, EXPIRED or INVALID links).
+  final String? code;
 
   @override
   String toString() => 'AppError($kind, $message)';

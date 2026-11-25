@@ -21,6 +21,7 @@ class LoginForm extends StatelessWidget {
     required this.demoHint,
     required this.onSubmit,
     required this.onRegister,
+    required this.onForgot,
   });
 
   final TextEditingController email;
@@ -41,6 +42,7 @@ class LoginForm extends StatelessWidget {
   final String? demoHint;
   final VoidCallback onSubmit;
   final VoidCallback onRegister;
+  final VoidCallback onForgot;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -71,6 +73,13 @@ class LoginForm extends StatelessWidget {
         errorText: passwordError,
         onChanged: (_) => onEdited(),
         onSubmitted: (_) => onSubmit(),
+      ),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: busy ? null : onForgot,
+          child: const Text('¿Olvidaste tu contraseña?'),
+        ),
       ),
       if (error != null) ...[
         const SizedBox(height: 16),

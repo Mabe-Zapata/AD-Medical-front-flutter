@@ -7,6 +7,9 @@ import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
 /// Token that the demo accepts as a valid email link: `#/verificar?token=demo`.
 const demoVerificationToken = 'demo';
 
+/// Token that the demo accepts as a valid reset link: `#/restablecer?token=demo-reset`.
+const demoResetToken = 'demo-reset';
+
 class DemoAuthRepository implements AuthRepository {
   DemoAuthRepository(this._db);
 
@@ -55,6 +58,23 @@ class DemoAuthRepository implements AuthRepository {
       throw const AppError(ErrorKind.forbidden, 'current password is wrong');
     }
     _changed[email] = next;
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await _db.simulateLatency();
+  }
+
+  @override
+  Future<String> passwordResetStatus(String token) async {
+    await _db.simulateLatency();
+    return token == demoResetToken ? 'VALID' : 'INVALID';
+  }
+
+  @override
+  Future<void> confirmPasswordReset({required String token, required String password}) async {
+    await _db.simulateLatency();
+    if (token != demoResetToken) throw const AppError(ErrorKind.validation, 'link invalid, already used or expired');
   }
 
   /// The demo activates accounts at once; this only accepts the token the demo link would carry.

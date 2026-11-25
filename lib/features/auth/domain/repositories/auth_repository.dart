@@ -25,6 +25,15 @@ abstract interface class AuthRepository {
   /// when the current password is wrong; the session stays alive (only a 401 signs the patient out).
   Future<void> changePassword({required String email, required String current, required String next});
 
+  /// Asks for a reset link. The answer is the same whether or not the email has an account.
+  Future<void> requestPasswordReset(String email);
+
+  /// Why a reset link cannot be used (`USED`, `EXPIRED`, `INVALID`), or `VALID` when it still can.
+  Future<String> passwordResetStatus(String token);
+
+  /// Sets the new password behind a single-use link. Throws `AppError` when the link is not usable.
+  Future<void> confirmPasswordReset({required String token, required String password});
+
   /// Takes the token explicitly: the session does not exist yet while signing in.
   Future<Patient> fetchProfile({required String token, required String email});
 }

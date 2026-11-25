@@ -21,10 +21,15 @@ abstract interface class PaymentRepository {
 
   /// Asks for the whole payment back. Needs [knowsPayment]. A retry of the same request reuses its idempotency
   /// key, so it never creates a second refund.
+  /// The state of the newest refund of the appointment's payment, read at Stripe through the backend:
+  /// `PENDIENTE`, `PROCESADO` or `FALLIDO`. Null when the payment has no refund.
+  Future<String?> refundStatus({required String patientId, required String appointmentId});
+
   Future<Refund> requestRefund({
     required String patientId,
     required String appointmentId,
     required RefundReason reason,
     String? text,
+    String? paymentId,
   });
 }

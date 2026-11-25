@@ -3,6 +3,8 @@ import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/auth_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/change_password_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/forgot_password_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/reset_password_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/session_expired_dialog.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
@@ -12,6 +14,7 @@ import 'package:medicalbooking_portal/features/payments/presentation/pages/payme
 import 'package:medicalbooking_portal/features/portal/presentation/pages/portal_page.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/pages/profile_dialog.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
+import 'package:medicalbooking_portal/core/navigation/return_address.dart';
 
 class AppRouter {
   const AppRouter(this._dependencies);
@@ -41,6 +44,8 @@ class AppRouter {
       ),
       Routes.register => _modal(settings, AuthDialog(next: argument, mode: AuthMode.register)),
       Routes.verify => _modal(settings, VerifyEmailDialog(token: uri.queryParameters['token'])),
+      Routes.forgotPassword => _modal(settings, const ForgotPasswordDialog()),
+      Routes.resetPassword => _modal(settings, ResetPasswordDialog(token: uri.queryParameters['token'])),
       Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
       Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
       Routes.profile => _modal(settings, const ProfileDialog()),
@@ -62,8 +67,10 @@ class AppRouter {
     final home = onGenerateRoute(const RouteSettings(name: Routes.home));
     final path = Uri.tryParse(initialRoute)?.path;
     if (path == Routes.verify) return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
+    if (path == Routes.resetPassword) return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
     final returned = const {Routes.paymentDone, Routes.paymentCancelled, Routes.paymentReturn}.contains(path) ? path : _returnPath(Uri.base.path);
     if (returned == null) return [home];
+    clearReturnAddress();
     return [home, onGenerateRoute(RouteSettings(name: returned))];
   }
 
