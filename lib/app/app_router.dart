@@ -7,6 +7,7 @@ import 'package:medicalbooking_portal/features/auth/presentation/pages/session_e
 import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/pages/landing_page.dart';
+import 'package:medicalbooking_portal/features/clinical_history/presentation/pages/clinical_history_dialog.dart';
 import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_result_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/pages/portal_page.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/pages/profile_dialog.dart';
@@ -16,7 +17,7 @@ class AppRouter {
   const AppRouter(this._dependencies);
 
   /// Pages that need a signed-in patient.
-  static const _protected = {Routes.book, Routes.portal, Routes.profile, Routes.changePassword};
+  static const _protected = {Routes.book, Routes.portal, Routes.profile, Routes.changePassword, Routes.history};
 
   final AppDependencies _dependencies;
 
@@ -44,6 +45,7 @@ class AppRouter {
       Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
       Routes.profile => _modal(settings, const ProfileDialog()),
       Routes.changePassword => _modal(settings, const ChangePasswordDialog()),
+      Routes.history => _modal(settings, const ClinicalHistoryDialog()),
       Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
       // The return never says whether the card was charged, so it gets the same "we are confirming" text.
       Routes.paymentDone || Routes.paymentReturn => _modal(settings, const PaymentResultDialog(completed: true)),

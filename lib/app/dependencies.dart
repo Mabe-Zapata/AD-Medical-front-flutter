@@ -25,6 +25,14 @@ import 'package:medicalbooking_portal/features/catalog/data/repositories/http_ca
 import 'package:medicalbooking_portal/features/catalog/data/repositories/static_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/usecases/get_catalog.dart';
+import 'package:medicalbooking_portal/features/clinical_history/data/repositories/demo_patient_history_repository.dart';
+import 'package:medicalbooking_portal/features/clinical_history/data/repositories/http_patient_history_repository.dart';
+import 'package:medicalbooking_portal/features/clinical_history/domain/repositories/patient_history_repository.dart';
+import 'package:medicalbooking_portal/features/clinical_history/domain/usecases/declare_history_entry.dart';
+import 'package:medicalbooking_portal/features/clinical_history/domain/usecases/read_history_events.dart';
+import 'package:medicalbooking_portal/features/clinical_history/domain/usecases/read_patient_history.dart';
+import 'package:medicalbooking_portal/features/clinical_history/domain/usecases/search_history_catalog.dart';
+import 'package:medicalbooking_portal/features/clinical_history/presentation/controllers/clinical_history_controller.dart';
 import 'package:medicalbooking_portal/features/lab_results/data/repositories/demo_lab_results_repository.dart';
 import 'package:medicalbooking_portal/features/lab_results/data/repositories/http_lab_results_repository.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_my_lab_orders.dart';
@@ -64,6 +72,7 @@ class AppDependencies {
     required this.verifyEmail,
     required this.changePassword,
     required this.clinicalProfiles,
+    required this.clinicalHistory,
     required this.getCatalog,
     required this.getDaySlots,
     required this.listSpecialties,
@@ -99,6 +108,7 @@ class AppDependencies {
       session: _session(auth, store),
       verifyEmail: VerifyEmail(auth),
       changePassword: ChangePassword(auth),
+      clinicalHistory: _history(DemoPatientHistoryRepository()),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(DemoClinicalProfileRepository(db)),
         load: LoadClinicalProfile(DemoClinicalProfileRepository(db)),
@@ -156,6 +166,7 @@ class AppDependencies {
       session: session,
       verifyEmail: VerifyEmail(auth),
       changePassword: ChangePassword(auth),
+      clinicalHistory: _history(HttpPatientHistoryRepository(api), now: now),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
         load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
@@ -199,6 +210,18 @@ class AppDependencies {
     );
   }
 
+  /// The history controller over one repository: the demo's in-memory data or the API's `/me/historia`.
+  static ClinicalHistoryController _history(
+    PatientHistoryRepository repository, {
+    DateTime Function() now = DateTime.now,
+  }) => ClinicalHistoryController(
+    read: ReadPatientHistory(repository),
+    readEvents: ReadHistoryEvents(repository),
+    declare: DeclareHistoryEntry(repository),
+    searchCatalog: SearchHistoryCatalog(repository),
+    now: now,
+  );
+
   static SessionController _session(
     AuthRepository auth,
     SessionStore store, {
@@ -221,6 +244,9 @@ class AppDependencies {
   final VerifyEmail verifyEmail;
   final ChangePassword changePassword;
   final ClinicalProfileController clinicalProfiles;
+
+  /// The patient's clinical history screen: range, entries, declarations and the event log.
+  final ClinicalHistoryController clinicalHistory;
   final GetCatalog getCatalog;
   final GetDaySlots getDaySlots;
   final ListSpecialties listSpecialties;
@@ -260,5 +286,6 @@ class AppDependencies {
   void dispose() {
     session.dispose();
     clinicalProfiles.dispose();
+    clinicalHistory.dispose();
   }
 }

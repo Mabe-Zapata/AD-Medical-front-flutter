@@ -14,4 +14,5 @@ abstract final class Routes {
   static const paymentReturn = '/pago/retorno';
   static const profile = '/perfil';
   static const changePassword = '/cuenta/contrasena';
+  static const history = '/historia';
 }
