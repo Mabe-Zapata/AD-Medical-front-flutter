@@ -121,14 +121,15 @@ class HttpAppointmentRepository implements AppointmentRepository {
 
   /// An appointment of the listing: what the API says, plus what this app run remembers about it.
   Appointment _listed(Map<String, dynamic> json, String patientId) {
+    final paymentId = json['pago_id'] as String?;
+    final refundState = json['reembolso_estado'] as String?;
     final id = json['id'] as String;
     final start = DateTime.parse(json['inicio'] as String).toUtc();
     final end = DateTime.parse(json['fin'] as String).toUtc();
     final status = _status(json['estado'] as String);
     final known = _mine.where((a) => a.id == id && a.patientId == patientId).firstOrNull;
     final doctor = _listedDoctor(json['medico']);
-    if (known == null) return _placeholder(id, patientId, start, end, status, doctor: doctor);
-    return Appointment(
+    final built = known == null ? _placeholder(id, patientId, start, end, status, doctor: doctor) : Appointment(
       id: id,
       patientId: patientId,
       service: known.service,
@@ -139,6 +140,7 @@ class HttpAppointmentRepository implements AppointmentRepository {
       reservationExpiresAt: known.reservationExpiresAt,
       doctor: doctor,
     );
+    return built.copyWith(paymentId: paymentId, refundState: refundState);
   }
 
   /// The listing does not say which service it was, so it is shown as a generic laboratory appointment with

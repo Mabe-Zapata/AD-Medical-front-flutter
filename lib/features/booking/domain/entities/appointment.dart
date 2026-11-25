@@ -20,6 +20,8 @@ class Appointment {
     this.reason,
     this.reservationExpiresAt,
     this.doctor,
+    this.paymentId,
+    this.refundState,
   });
 
   final String id;
@@ -34,6 +36,12 @@ class Appointment {
   /// Who attends the appointment, as the listing says it; null when the API does not name a doctor.
   final AppointmentDoctor? doctor;
 
+  /// The confirmed payment of the appointment, as the listing says it; null when it was not paid.
+  final String? paymentId;
+
+  /// The state of the newest refund (`PENDIENTE`, `PROCESADO`, `FALLIDO`); null when there is none.
+  final String? refundState;
+
   /// Patients and doctors may cancel until this long after the start; the API enforces the same rule.
   static const cancellationWindow = Duration(hours: 1);
 
@@ -45,7 +53,7 @@ class Appointment {
   bool cancellableAt(DateTime now) =>
       holdsSlot && !now.toUtc().isAfter(slot.startUtc.add(cancellationWindow));
 
-  Appointment copyWith({AppointmentStatus? status}) => Appointment(
+  Appointment copyWith({AppointmentStatus? status, String? paymentId, String? refundState}) => Appointment(
     id: id,
     patientId: patientId,
     service: service,
@@ -55,5 +63,7 @@ class Appointment {
     reason: reason,
     reservationExpiresAt: reservationExpiresAt,
     doctor: doctor,
+    paymentId: paymentId ?? this.paymentId,
+    refundState: refundState ?? this.refundState,
   );
 }

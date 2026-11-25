@@ -146,7 +146,7 @@ class ApiClient {
       502 || 503 || 504 => ErrorKind.unavailable,
       _ => ErrorKind.unknown,
     };
-    return AppError(kind, detail, correlationId: correlationId, status: response.statusCode);
+    return AppError(kind, detail, correlationId: correlationId, status: response.statusCode, code: code);
   }
 
   void close() => _client.close();

@@ -92,21 +92,31 @@ class HttpPaymentRepository implements PaymentRepository {
   }
 
   @override
+  Future<String?> refundStatus({required String patientId, required String appointmentId}) async {
+    final paymentId =
+        _trails[appointmentId]?.paymentId ??
+        (await checkoutStatus(patientId: patientId, appointmentId: appointmentId)).paymentId;
+    final json = await _api.get('/payments/$paymentId/refund-status') as Map<String, dynamic>;
+    return json['estado'] as String?;
+  }
+
+  @override
   Future<Refund> requestRefund({
     required String patientId,
     required String appointmentId,
     required RefundReason reason,
     String? text,
+    String? paymentId,
   }) async {
-    final paymentId =
-        _trails[appointmentId]?.paymentId ??
+    final resolved =
+        paymentId ?? _trails[appointmentId]?.paymentId ??
         (await checkoutStatus(patientId: patientId, appointmentId: appointmentId)).paymentId;
     // One key per payment and reason: a retry after a lost answer replays the same refund; another reason is
     // another request.
-    final keyId = '$paymentId/${reason.code}';
+    final keyId = '$resolved/${reason.code}';
     final json =
         await _api.post(
-              '/payments/$paymentId/refunds',
+              '/payments/$resolved/refunds',
               headers: {'Idempotency-Key': _refundKeys.putIfAbsent(keyId, newIdempotencyKey)},
               body: {
                 'motivo_codigo': reason.code,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/controllers/session_controller.dart';
@@ -9,6 +11,7 @@ import 'package:medicalbooking_portal/features/lab_results/domain/usecases/get_m
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/refund.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/get_refund_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_card_setup.dart';
@@ -29,6 +32,7 @@ class PortalController extends ChangeNotifier {
     required this._startCheckout,
     required this._getCheckoutStatus,
     required this._requestRefund,
+    required this._getRefundStatus,
     required this._getSavedCard,
     required this._removeSavedCard,
     required this._startCardSetup,
@@ -53,6 +57,7 @@ class PortalController extends ChangeNotifier {
   final StartCheckout _startCheckout;
   final GetCheckoutStatus _getCheckoutStatus;
   final RequestRefund _requestRefund;
+  final GetRefundStatus _getRefundStatus;
   final GetSavedCard _getSavedCard;
   final RemoveSavedCard _removeSavedCard;
   final StartCardSetup _startCardSetup;
@@ -65,6 +70,45 @@ class PortalController extends ChangeNotifier {
   bool _working = false;
   ErrorView? _error;
   String? _notice;
+  Timer? _noticeTimer;
+  Timer? _errorTimer;
+
+  /// How long an error banner stays before it leaves on its own.
+  static const _errorLifetime = Duration(seconds: 8);
+
+  /// Shows [error] and schedules it to leave; a new error replaces the old one and its timer.
+  void _setError(ErrorView? error) {
+    _errorTimer?.cancel();
+    _error = error;
+    if (error != null) _errorTimer = Timer(_errorLifetime, dismissError);
+  }
+
+  /// The patient closed the error banner, or its time ran out.
+  void dismissError() {
+    _errorTimer?.cancel();
+    if (_disposed || _error == null) return;
+    _error = null;
+    _notify();
+  }
+
+  /// How long a notice stays before it leaves on its own.
+  static const _noticeLifetime = Duration(seconds: 6);
+
+  /// Shows [text] and schedules it to leave; a new notice replaces the old one and its timer.
+  void _setNotice(String? text, {bool sticky = false}) {
+    _noticeTimer?.cancel();
+    _notice = text;
+    if (text != null && !sticky) _noticeTimer = Timer(_noticeLifetime, dismissNotice);
+  }
+
+  /// The patient closed the notice, or its time ran out.
+  void dismissNotice() {
+    _noticeTimer?.cancel();
+    if (_disposed || _notice == null) return;
+    _notice = null;
+    _notify();
+  }
+
   bool _disposed = false;
 
   List<Appointment> get appointments => _appointments;
@@ -83,7 +127,7 @@ class PortalController extends ChangeNotifier {
     final patient = _session.patient;
     if (patient == null) return;
     _loading = true;
-    _error = null;
+    _setError(null);
     _notify();
     try {
       final results = await Future.wait([
@@ -95,7 +139,7 @@ class PortalController extends ChangeNotifier {
       _orders = results[1] as List<LabOrder>;
       _card = results[2] as SavedCard?;
     } catch (error) {
-      _error = describeError(error);
+      _setError(describeError(error));
     }
     _loading = false;
     _notify();
@@ -106,8 +150,29 @@ class PortalController extends ChangeNotifier {
     if (patient == null) return;
     await _run(() async {
       await _cancelAppointment(patientId: patient.id, appointment: appointment, reason: reason);
-      _notice = 'Cita ${appointment.id} cancelada. El horario quedó libre.';
     }, overrides: _cancelOverrides);
+    if (_error == null) _announceCancellation(appointment.id);
+  }
+
+  /// Says what happened to the money, from the refreshed listing. The backend asks for the refund by itself when
+  /// the payment qualifies; when it fails, the patient can ask again from the appointment.
+  void _announceCancellation(String appointmentId) {
+    final updated = _appointments.where((a) => a.id == appointmentId).firstOrNull;
+    if (updated == null) return;
+    switch (updated.refundState) {
+      case 'PENDIENTE':
+        _refundPending = updated;
+        _setNotice('Cita cancelada. Pedimos tu reembolso; Stripe lo está procesando.', sticky: true);
+      case 'PROCESADO':
+        _setNotice('Cita cancelada. Tu reembolso ya se completó.');
+      case 'FALLIDO':
+        _setNotice('Cita cancelada. El reembolso automático no se pudo completar; puedes pedirlo de nuevo desde tu cita.', sticky: true);
+      default:
+        _setNotice(updated.paymentId != null
+            ? 'Cita cancelada. No se pidió reembolso automático; si corresponde, puedes pedirlo desde tu cita.'
+            : 'Cita cancelada. El horario quedó libre.');
+    }
+    _notify();
   }
 
   /// Opens a checkout, or picks up a payment that was already started. Returns where the patient pays, or null
@@ -128,10 +193,10 @@ class PortalController extends ChangeNotifier {
           // "Confirmada" (a backend gap), so the card shows the payment as confirmed on its own.
           _processing.remove(appointment.id);
           _paid.add(appointment.id);
-          _notice = 'Tu pago está confirmado. El laboratorio confirmará tu cita.';
+          _setNotice('Tu pago está confirmado. El laboratorio confirmará tu cita.');
         } else if (error.message.contains('still being processed')) {
           _processing.add(appointment.id);
-          _notice = await _pendingNotice(patient.id, appointment);
+          _setNotice(await _pendingNotice(patient.id, appointment));
         } else {
           rethrow;
         }
@@ -150,10 +215,19 @@ class PortalController extends ChangeNotifier {
     }
   }
 
+  /// Asks the backend whether the payment of [appointment] was confirmed, and says so.
+  Future<void> checkPayment(Appointment appointment) => _run(() async {
+    final patient = _session.patient;
+    if (patient == null) return;
+    final status = await _getCheckoutStatus(patientId: patient.id, appointment: appointment);
+    if (status.state == CheckoutState.confirmed) _paid.add(appointment.id);
+    _setNotice(_paymentNotice(status));
+  });
+
   /// The patient submitted the payment form. The reload brings back the card if it was saved.
   Future<void> paymentSent(Appointment appointment) => _run(() async {
     _processing.add(appointment.id);
-    _notice = 'Pago enviado. Tu cita se confirmará en cuanto el banco avise.';
+    _setNotice('Pago enviado. Tu cita se confirmará en cuanto el banco avise.');
   });
 
   /// Appointments whose payment was sent and still waits for the bank's confirmation (kept while the page is open).
@@ -189,15 +263,46 @@ class PortalController extends ChangeNotifier {
     CheckoutState.cancelled => 'El pago fue cancelado.',
   };
 
+  /// The refund waiting for Stripe's final answer, if any. Its notice stays until the patient checks it.
+  Appointment? _refundPending;
+
+  bool get refundPending => _refundPending != null;
+
+  /// Asks the backend, which asks Stripe, whether the refund finished, and says so.
+  Future<void> checkRefund() {
+    final appointment = _refundPending;
+    final patient = _session.patient;
+    if (appointment == null || patient == null) return Future.value();
+    return _run(() async {
+      final state = await _getRefundStatus(patientId: patient.id, appointment: appointment);
+      if (state == 'PROCESADO') {
+        _refundPending = null;
+        _setNotice('Tu reembolso se completó. Stripe confirmó la devolución.');
+      } else if (state == 'FALLIDO') {
+        _refundPending = null;
+        _setNotice('El banco no pudo completar el reembolso. Contacta al laboratorio.');
+      } else if (state == null) {
+        _refundPending = null;
+        _setNotice('No encontramos un reembolso para esta cita.');
+      } else {
+        _setNotice('Stripe todavía procesa tu reembolso. Verifícalo de nuevo en un momento.', sticky: true);
+      }
+    });
+  }
+
   /// Asks for the refund. It is only "requested": the bank confirms it later.
   Future<void> refund(Appointment appointment, RefundReason reason, {String? text}) async {
     final patient = _session.patient;
     if (patient == null) return;
     await _run(() async {
       final refund = await _requestRefund(patientId: patient.id, appointment: appointment, reason: reason, text: text);
-      _notice = refund.state == RefundState.failed
-          ? 'El banco no pudo registrar el reembolso. Contacta al laboratorio.'
-          : 'Pedimos tu reembolso. Te lo acreditaremos cuando el banco lo procese.';
+      if (refund.state == RefundState.failed) {
+        _refundPending = null;
+        _setNotice('El banco no pudo registrar el reembolso. Contacta al laboratorio.');
+      } else {
+        _refundPending = appointment;
+        _setNotice('Pedimos tu reembolso. Stripe lo procesa; verifícalo para confirmar que se completó.', sticky: true);
+      }
     }, describe: (error) => error is AppError ? ErrorView(refundFailureMessage(error)) : describeError(error));
   }
 
@@ -210,7 +315,7 @@ class PortalController extends ChangeNotifier {
 
   /// The card was stored by Stripe: reload the cards so the new one shows up.
   Future<void> cardSaved() => _run(() async {
-    _notice = 'Tarjeta guardada. La puedes usar al pagar tus citas.';
+    _setNotice('Tarjeta guardada. La puedes usar al pagar tus citas.');
   });
 
   Future<void> removeCard() async {
@@ -218,7 +323,7 @@ class PortalController extends ChangeNotifier {
     if (patient == null) return;
     await _run(() async {
       await _removeSavedCard(patient.id);
-      _notice = 'Quitamos tu tarjeta guardada.';
+      _setNotice('Quitamos tu tarjeta guardada.');
     });
   }
 
@@ -228,14 +333,14 @@ class PortalController extends ChangeNotifier {
     ErrorView Function(Object)? describe,
   }) async {
     _working = true;
-    _error = null;
-    _notice = null;
+    _setError(null);
+    _setNotice(null);
     _notify();
     try {
       await action();
       await load();
     } catch (error) {
-      _error = describe?.call(error) ?? describeError(error, overrides: overrides);
+      _setError(describe?.call(error) ?? describeError(error, overrides: overrides));
     }
     _working = false;
     _notify();
@@ -247,6 +352,8 @@ class PortalController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _noticeTimer?.cancel();
+    _errorTimer?.cancel();
     _disposed = true;
     super.dispose();
   }

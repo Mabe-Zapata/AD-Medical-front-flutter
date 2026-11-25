@@ -49,6 +49,29 @@ class HttpAuthRepository implements AuthRepository {
     );
   }
 
+  /// `POST /auth/password-reset`: answers 202 whatever the email.
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await _api.post('/auth/password-reset', body: {'email': email}, authenticated: false);
+  }
+
+  /// `GET /auth/password-reset/status`: VALID, USED, EXPIRED or INVALID.
+  @override
+  Future<String> passwordResetStatus(String token) async {
+    final json = await _api.get('/auth/password-reset/status', query: {'token': token}) as Map<String, dynamic>;
+    return json['status'] as String;
+  }
+
+  /// `POST /auth/password-reset/confirm`: the link is spent by this call.
+  @override
+  Future<void> confirmPasswordReset({required String token, required String password}) async {
+    await _api.post(
+      '/auth/password-reset/confirm',
+      body: {'token': token, 'password': password},
+      authenticated: false,
+    );
+  }
+
   @override
   Future<void> verifyEmail(String token) async {
     await _api.get('/auth/verify-email', query: {'token': token});

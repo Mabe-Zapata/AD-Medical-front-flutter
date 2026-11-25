@@ -3,6 +3,8 @@ abstract final class Routes {
   static const login = '/login';
   static const register = '/registro';
   static const verify = '/verificar';
+  static const forgotPassword = '/recuperar';
+  static const resetPassword = '/restablecer';
   static const book = '/book';
   static const portal = '/portal';
   static const pay = '/pagar';

@@ -5,10 +5,13 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.
 
 /// An [ErrorView] as a red banner, with an optional "Reintentar" so the person can recover in one step.
 class ErrorBanner extends StatelessWidget {
-  const ErrorBanner({super.key, required this.error, this.onRetry});
+  const ErrorBanner({super.key, required this.error, this.onRetry, this.onDismiss});
 
   final ErrorView error;
   final VoidCallback? onRetry;
+
+  /// When set, the banner shows a close button.
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -18,6 +21,7 @@ class ErrorBanner extends StatelessWidget {
         message: error.message,
         color: Tokens.danger,
         icon: Icons.error_outline,
+        onDismiss: onDismiss,
       ),
       if (onRetry != null)
         Padding(

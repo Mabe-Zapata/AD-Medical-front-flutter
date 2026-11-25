@@ -41,6 +41,11 @@ class DemoPaymentRepository implements PaymentRepository {
     );
   }
 
+  /// The demo settles a refund at once, so its status is always final.
+  @override
+  Future<String?> refundStatus({required String patientId, required String appointmentId}) async =>
+      'PROCESADO';
+
   /// Plays the backend's rules: only a cancelled, paid appointment, and one active refund per payment.
   @override
   Future<Refund> requestRefund({
@@ -48,6 +53,7 @@ class DemoPaymentRepository implements PaymentRepository {
     required String appointmentId,
     required RefundReason reason,
     String? text,
+    String? paymentId,
   }) async {
     await _db.simulateLatency();
     final appointment = _db.appointments.where((a) => a.id == appointmentId && a.patientId == patientId).firstOrNull;

@@ -3,6 +3,7 @@ import 'package:medicalbooking_portal/app/app_scope.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/widgets/link_refusal_dialog.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
@@ -45,10 +46,20 @@ class _VerifyEmailDialogState extends State<VerifyEmailDialog> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) return const _Activating();
         final error = snapshot.error;
-        return error == null ? const _Activated() : _NotActivated(error: describeError(error, overrides: _overrides));
+        if (error == null) return const _Activated();
+        final reason = error is AppError ? error.code : null;
+        if (reason != null && _refusalAlerts.containsKey(reason)) return _Refused(reason: reason);
+        return _NotActivated(error: describeError(error, overrides: _overrides));
       },
     ),
   );
+
+  /// Title and text for each reason a link cannot be used. Shown on the login page after the redirect.
+  static const _refusalAlerts = {
+    'USED': ('Este enlace ya fue usado', 'Si ya activaste tu cuenta, inicia sesión con tu correo y tu contraseña.'),
+    'EXPIRED': ('Este enlace venció', 'Regístrate de nuevo o pide ayuda a soporte para recibir un enlace nuevo.'),
+    'INVALID': ('El enlace no es válido', 'Abre el enlace completo que llegó a tu correo.'),
+  };
 
   static const _overrides = {
     ErrorKind.validation: 'El enlace no es válido, ya se usó o venció.',
@@ -145,4 +156,37 @@ class _NotActivated extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// The link cannot be used (already used, expired or invalid): the login page replaces this one, so the back
+/// button cannot return here, and the alert explains why.
+class _Refused extends StatefulWidget {
+  const _Refused({required this.reason});
+
+  final String reason;
+
+  @override
+  State<_Refused> createState() => _RefusedState();
+}
+
+class _RefusedState extends State<_Refused> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _goToLogin());
+  }
+
+  Future<void> _goToLogin() async {
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    navigator.pushReplacementNamed(Routes.login);
+    final (title, text) = _VerifyEmailDialogState._refusalAlerts[widget.reason]!;
+    await showDialog<void>(
+      context: navigator.context,
+      builder: (_) => LinkRefusalDialog(reason: widget.reason, title: title, text: text),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const _Activating();
 }

@@ -11,6 +11,7 @@ import 'package:medicalbooking_portal/features/auth/domain/usecases/register_pat
 import 'package:medicalbooking_portal/features/auth/domain/usecases/restore_session.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_in.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/sign_out.dart';
+import 'package:medicalbooking_portal/features/auth/domain/usecases/password_reset.dart';
 import 'package:medicalbooking_portal/features/auth/domain/usecases/verify_email.dart';
 import 'package:medicalbooking_portal/features/auth/presentation/controllers/session_controller.dart';
 import 'package:medicalbooking_portal/features/booking/data/repositories/demo_appointment_repository.dart';
@@ -43,6 +44,7 @@ import 'package:medicalbooking_portal/features/payments/domain/usecases/get_chec
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/download_results_report.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_latest_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/get_refund_status.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_card_setup.dart';
@@ -62,6 +64,7 @@ class AppDependencies {
     required this.isDemo,
     required this.session,
     required this.verifyEmail,
+    required this.passwordReset,
     required this.changePassword,
     required this.clinicalProfiles,
     required this.getCatalog,
@@ -77,6 +80,7 @@ class AppDependencies {
     required this.getCheckoutStatus,
     required this.getLatestCheckout,
     required this.requestRefund,
+    required this.getRefundStatus,
     required this.getSavedCard,
     required this.openPage,
     required this.embeddedCheckout,
@@ -98,6 +102,7 @@ class AppDependencies {
       isDemo: true,
       session: _session(auth, store),
       verifyEmail: VerifyEmail(auth),
+      passwordReset: PasswordReset(auth),
       changePassword: ChangePassword(auth),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(DemoClinicalProfileRepository(db)),
@@ -116,6 +121,7 @@ class AppDependencies {
       getCheckoutStatus: GetCheckoutStatus(payments),
       getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
+      getRefundStatus: GetRefundStatus(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
       startCardSetup: StartCardSetup(savedCards),
@@ -155,6 +161,7 @@ class AppDependencies {
       isDemo: false,
       session: session,
       verifyEmail: VerifyEmail(auth),
+      passwordReset: PasswordReset(auth),
       changePassword: ChangePassword(auth),
       clinicalProfiles: ClinicalProfileController(
         save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
@@ -190,6 +197,7 @@ class AppDependencies {
       getCheckoutStatus: GetCheckoutStatus(payments),
       getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
+      getRefundStatus: GetRefundStatus(payments),
       getSavedCard: GetSavedCard(savedCards),
       removeSavedCard: RemoveSavedCard(savedCards),
       startCardSetup: StartCardSetup(savedCards),
@@ -219,6 +227,7 @@ class AppDependencies {
 
   final SessionController session;
   final VerifyEmail verifyEmail;
+  final PasswordReset passwordReset;
   final ChangePassword changePassword;
   final ClinicalProfileController clinicalProfiles;
   final GetCatalog getCatalog;
@@ -234,6 +243,7 @@ class AppDependencies {
   final GetCheckoutStatus getCheckoutStatus;
   final GetLatestCheckout getLatestCheckout;
   final RequestRefund requestRefund;
+  final GetRefundStatus getRefundStatus;
   final GetSavedCard getSavedCard;
 
   /// Sends the browser to another page (the hosted payment page); a test replaces it.

@@ -184,6 +184,7 @@ class _AuthDialogState extends State<AuthDialog> {
                     demoHint: _demo == null ? null : 'Cuenta demo: ${_demo!.email} / ${_demo!.password}.',
                     onSubmit: _signIn,
                     onRegister: () => _switchTo(AuthMode.register),
+                    onForgot: () => Navigator.of(context).pushNamed(Routes.forgotPassword),
                   )
                 else
                   RegisterForm(
