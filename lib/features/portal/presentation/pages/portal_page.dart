@@ -286,6 +286,7 @@ class _PortalPageState extends State<PortalPage> {
                         _Greeting(
                           name: patient.firstName,
                           onBook: () => Navigator.of(context).pushNamed(Routes.book),
+                          onHistory: () => Navigator.of(context).pushNamed(Routes.history),
                         ),
                         const SizedBox(height: 56),
                         LayoutBuilder(
@@ -548,10 +549,11 @@ class _PortalPageState extends State<PortalPage> {
 
 /// The name alone, with the portal tag beside it, and the main action at the right edge.
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.name, required this.onBook});
+  const _Greeting({required this.name, required this.onBook, required this.onHistory});
 
   final String? name;
   final VoidCallback onBook;
+  final VoidCallback onHistory;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -584,6 +586,16 @@ class _Greeting extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        OutlinedButton.icon(
+          onPressed: onHistory,
+          icon: const Icon(Icons.assignment_outlined, size: 20),
+          label: const Text('Mi historia clínica'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white),
+            minimumSize: const Size(0, 50),
+          ),
         ),
         FilledButton.icon(
           onPressed: onBook,
