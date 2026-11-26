@@ -34,6 +34,15 @@ class _FakeAuth implements AuthRepository {
   Future<void> changePassword({required String email, required String current, required String next}) async {}
 
   @override
+  Future<void> requestPasswordReset(String email) async {}
+
+  @override
+  Future<String> passwordResetStatus(String token) async => 'PENDING';
+
+  @override
+  Future<void> confirmPasswordReset({required String token, required String password}) async {}
+
+  @override
   Future<Patient> fetchProfile({required String token, required String email}) async {
     profileCalls++;
     return Patient(id: 'u1', email: email, roles: roles);
