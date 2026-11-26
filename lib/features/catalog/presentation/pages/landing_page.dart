@@ -5,6 +5,7 @@ import 'package:medicalbooking_portal/app/widgets/app_header.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/about_section.dart';
+import 'package:medicalbooking_portal/features/catalog/presentation/widgets/branches_map_section.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/catalog_section.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/cta_band.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/widgets/hero_section.dart';
@@ -61,6 +62,7 @@ class _LandingPageState extends State<LandingPage> {
                   return Column(
                     children: [
                       AboutSection(key: _keys['about'], branches: catalog.branches),
+                      BranchesMapSection(branches: catalog.branches),
                       CatalogSection(
                         key: _keys['product'],
                         testTypes: catalog.testTypes,
