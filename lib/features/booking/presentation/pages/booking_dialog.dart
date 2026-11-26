@@ -5,6 +5,7 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/format/es_format.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/policies/late_cancellation_policy.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/controllers/booking_controller.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/booking_aside.dart';
@@ -175,6 +176,8 @@ class _BookingFlowState extends State<_BookingFlow> {
                 ),
                 ],
                 const SizedBox(height: 18),
+                const _PolicyNote(),
+                const SizedBox(height: 18),
                 const _Label('Motivo (opcional)'),
                 const SizedBox(height: 6),
                 TextField(
@@ -245,6 +248,36 @@ class _Action extends StatelessWidget {
       },
     );
   }
+}
+
+/// The cancellation rule, shown while the patient chooses a slot so the consequences are known in advance.
+class _PolicyNote extends StatelessWidget {
+  const _PolicyNote();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Tokens.orangeTint,
+      borderRadius: BorderRadius.circular(Tokens.radiusSm),
+      border: Border.all(color: Tokens.orangeSoft),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Política de cancelación',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Tokens.orangeDeep),
+        ),
+        SizedBox(height: 6),
+        Text(
+          lateCancelRuleText,
+          style: TextStyle(fontSize: 13, height: 1.45, color: Tokens.slate700),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Label extends StatelessWidget {

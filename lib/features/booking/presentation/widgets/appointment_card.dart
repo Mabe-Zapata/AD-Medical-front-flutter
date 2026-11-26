@@ -4,6 +4,7 @@ import 'package:medicalbooking_portal/core/format/es_format.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/date_block.dart';
+import 'package:medicalbooking_portal/features/payments/domain/policies/refund_failure.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/status_chip.dart';
 
 (String, Color) appointmentStatusLabel(AppointmentStatus status) => switch (status) {
@@ -61,6 +62,18 @@ class AppointmentCard extends StatelessWidget {
     final doctorLine = doctor == null
         ? null
         : [doctor.name, if (doctor.phone != null) 'Tel. ${doctor.phone}'].join(' · ');
+    // Refund advice for a cancelled appointment: a tag when the refund went through (or is on its way), and a
+    // notice with the reason when the backend will not refund it and nothing was refunded yet.
+    final cancelled = a.status == AppointmentStatus.cancelled;
+    final refundDone = cancelled && a.refundState == 'PROCESADO';
+    final refundInProgress = cancelled && a.refundState == 'PENDIENTE';
+    final refundTag = refundDone
+        ? StatusChip('Reembolsado', Tokens.success)
+        : refundInProgress
+        ? StatusChip('Reembolso en proceso', Tokens.info)
+        : null;
+    final refundBlocked =
+        cancelled && !refundDone && !refundInProgress && a.refundEligible == false && a.refundBlockReason != null;
     final details = [
       '${timeLabel(start)} · ${a.service.durationMin} min',
       ?price,
@@ -114,13 +127,14 @@ class AppointmentCard extends StatelessWidget {
                   if (wide) ...[
                     const SizedBox(width: 12),
                     StatusChip(label, color),
+                    if (refundTag != null) ...[const SizedBox(width: 8), refundTag],
                     for (final action in actions) ...[const SizedBox(width: 8), action],
                   ],
                 ],
               ),
               if (!wide) ...[
                 const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [StatusChip(label, color), ...actions]),
+                Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [StatusChip(label, color), ?refundTag, ...actions]),
               ],
               if (inProcess) ...[
                 const SizedBox(height: 12),
@@ -140,6 +154,17 @@ class AppointmentCard extends StatelessWidget {
                   background: Tokens.orangeTint,
                   border: Tokens.orangeSoft,
                   foreground: Tokens.slate700,
+                ),
+              ],
+              if (refundBlocked) ...[
+                const SizedBox(height: 12),
+                _Notice(
+                  icon: Icons.info_outline_rounded,
+                  text: refundBlockMessage(a.refundBlockReason!),
+                  background: Tokens.orangeTint,
+                  border: Tokens.orangeSoft,
+                  foreground: Tokens.slate900,
+                  bold: true,
                 ),
               ],
             ],

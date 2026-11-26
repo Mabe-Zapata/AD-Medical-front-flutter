@@ -19,14 +19,16 @@ String refundFailureMessage(AppError error) {
   };
 }
 
+/// Why the patient cannot ask for a refund of a cancelled appointment, as a sentence for the card.
+String refundBlockMessage(String code) => refundFailureMessage(AppError(ErrorKind.conflict, code));
+
 const _rules = <(String, String)>[
   ('PAGO_NO_CONFIRMADO', 'Este pago todavía no está confirmado, así que no hay nada que reembolsar.'),
   ('CITA_NO_CANCELADA', 'Cancela la cita antes de pedir el reembolso.'),
   ('CONSULTA_ATENDIDA', 'La consulta ya fue atendida, por eso no se puede reembolsar.'),
-  ('CANCELACION_TARDIA', 'La cita se canceló demasiado tarde para un reembolso.'),
+  ('CANCELACION_TARDIA', 'Las cancelaciones con menos de 48 horas de anticipación no tienen reembolso.'),
   ('REEMBOLSO_EXISTENTE', 'Ya hay un reembolso en curso para este pago.'),
   ('FUERA_DE_VENTANA', 'Ya pasó el plazo para pedir el reembolso de este pago.'),
-  ('DEMASIADAS_SOLICITUDES', 'Hiciste demasiadas solicitudes de reembolso. Espera unos días e intenta de nuevo.'),
   ('SIN_PAYMENT_INTENT', 'Este pago no se puede reembolsar desde el portal. Contacta al laboratorio.'),
   ('MOTIVO_INVALIDO', 'Elige un motivo válido para el reembolso.'),
 ];

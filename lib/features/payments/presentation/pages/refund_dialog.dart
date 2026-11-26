@@ -59,7 +59,7 @@ class _RefundDialogState extends State<RefundDialog> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo.',
+                'Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo. Solo se reembolsan las cancelaciones hechas con 48 horas o más de anticipación.',
                 style: TextStyle(fontSize: 15, height: 1.5, color: Tokens.muted),
               ),
               const SizedBox(height: 16),

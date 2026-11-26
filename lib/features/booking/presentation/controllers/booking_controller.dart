@@ -6,6 +6,7 @@ import 'package:medicalbooking_portal/features/booking/domain/entities/appointme
 import 'package:medicalbooking_portal/features/booking/domain/entities/doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
+import 'package:medicalbooking_portal/features/booking/domain/policies/late_cancellation_policy.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_day_slots.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/list_doctors.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
@@ -286,7 +287,9 @@ class BookingController extends ChangeNotifier {
       await loadSlots();
     } catch (error) {
       _submitting = false;
-      _reserveError = describeError(error, overrides: _reserveOverrides);
+      _reserveError = error is AppError && isLateCancellationBlock(error)
+          ? const ErrorView(lateCancellationBlockMessage)
+          : describeError(error, overrides: _reserveOverrides);
       _notify();
     }
     return null;

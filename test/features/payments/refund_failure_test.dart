@@ -13,7 +13,6 @@ void main() {
       'CANCELACION_TARDIA',
       'REEMBOLSO_EXISTENTE',
       'FUERA_DE_VENTANA',
-      'DEMASIADAS_SOLICITUDES',
       'MOTIVO_INVALIDO',
       'SIN_PAYMENT_INTENT',
     ];

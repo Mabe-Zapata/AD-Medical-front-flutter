@@ -8,9 +8,12 @@ class RequestRefund {
 
   final PaymentRepository _repository;
 
-  /// Only a cancelled appointment whose payment this app run knows can be refunded from here.
+  /// Only a cancelled appointment whose payment this app run knows can be refunded from here. The backend's advice
+  /// (notice, window and request limit) hides the button when it says the refund is not allowed; when it says
+  /// nothing (not yet listed), the request itself is checked by the backend.
   bool canRequest(Appointment appointment) =>
       appointment.status == AppointmentStatus.cancelled &&
+      appointment.refundEligible != false &&
       (appointment.paymentId != null || _repository.knowsPayment(appointment.id)) &&
       appointment.refundState != 'PENDIENTE' &&
       appointment.refundState != 'PROCESADO';
