@@ -24,6 +24,7 @@ import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_pdf_preview.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
+import 'package:medicalbooking_portal/features/lab_results/presentation/report_failure_message.dart';
 import 'package:medicalbooking_portal/features/profile/presentation/widgets/profile_prompt.dart';
 import 'package:medicalbooking_portal/shared/presentation/layout/responsive.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
@@ -253,7 +254,7 @@ class _PortalPageState extends State<PortalPage> {
         fileName: fileName,
       );
     } catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(describeError(error).message)));
+      messenger.showSnackBar(SnackBar(content: Text(resultsReportFailureMessage(error))));
     }
   }
 

@@ -66,6 +66,7 @@ lib/features/<f>/{domain,data,presentation}
 | No hay `GET` de factura ni de pago (solo `checkout-status` por `factura_id`) | Al volver de Stripe se dice "estamos confirmando"; la lista de citas pasa a "Confirmada" cuando el webhook confirma; no se retoma una factura tras recargar |
 | `/me` solo trae id, roles y permisos | Se muestra el correo |
 | Orden sin fechas/médico/nombre de pruebas | Campos opcionales; pruebas como "Prueba N" |
+| Informe de resultados retenido hasta la revisión: el laboratorio y el médico deben revisar antes de liberar el PDF | Si falta una revisión, el backend responde 409 con `code` `LAB_REVIEW_PENDING` o `MEDICAL_REVIEW_PENDING` y el portal dice que el informe está en revisión (`features/lab_results/presentation/report_failure_message.dart`) |
 | Reenvío del correo de activación y teléfono en el registro | El enlace vence a las 24 h y no hay forma de pedir otro; el teléfono no se pide |
 
 Si el backend cierra una brecha, actualiza el repositorio `http_*`, quita la limitación de esta tabla y del README.
