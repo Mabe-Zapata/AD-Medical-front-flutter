@@ -10,6 +10,7 @@ import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
+import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 
 http.Response _json(Object body, int status) => http.Response(
   jsonEncode(body),
@@ -61,7 +62,15 @@ void main() {
     await tapText(tester, find.text('Consulta médica'));
     await tapText(tester, find.widgetWithText(ChoiceChip, 'Medicina general'));
     await tapText(tester, find.text('Dr. Andrés Mora'));
-    await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
+    await tapText(
+      tester,
+      find
+          .descendant(
+            of: find.byType(SlotPicker),
+            matching: find.byType(ChoiceChip),
+          )
+          .at(1),
+    );
     await tapText(
       tester,
       find
@@ -149,17 +158,40 @@ void main() {
       expect(find.text('Pedir reembolso'), findsNothing);
 
       await tapText(tester, find.text('Cancelar cita').first);
-      await tapText(tester, find.widgetWithText(FilledButton, 'Cancelar cita'));
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Cancelar cita'),
+      );
       await tapText(tester, find.text('Pedir reembolso').first);
-      expect(find.text('Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo.'), findsOneWidget);
-      await tapText(tester, find.widgetWithText(FilledButton, 'Pedir reembolso'));
+      expect(
+        find.textContaining(
+          'Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Solo se reembolsan las cancelaciones hechas con 48 horas',
+        ),
+        findsOneWidget,
+      );
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Pedir reembolso'),
+      );
 
       expect(find.textContaining('Pedimos tu reembolso'), findsOneWidget);
       expect(find.textContaining('reembolsado'), findsNothing);
 
       await tapText(tester, find.text('Pedir reembolso').first);
-      await tapText(tester, find.widgetWithText(FilledButton, 'Pedir reembolso'));
-      expect(find.text('Ya hay un reembolso en curso para este pago.'), findsOneWidget);
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Pedir reembolso'),
+      );
+      expect(
+        find.text('Ya hay un reembolso en curso para este pago.'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -242,6 +274,17 @@ void main() {
       opened = null;
       final backend = MockClient((request) async {
         calls.add('${request.method} ${request.url.path}');
+        // "Verificar pago" reads the checkout status from the backend (GET .../checkout-status).
+        if (request.url.path.endsWith('/checkout-status')) {
+          final confirmed = checkoutConflict == 'The invoice is already paid';
+          return _json({
+            'pago_id': 'p-1',
+            'estado': confirmed ? 'CONFIRMADO' : 'PENDIENTE',
+            'reintentos_realizados': 0,
+            'reintentos_maximos': 3,
+            'reintentos_agotados': false,
+          }, 200);
+        }
         switch (request.url.path) {
           case '/api/v1/auth/login':
             return _json({
@@ -256,9 +299,24 @@ void main() {
               'permissions': ['citas.reservar'],
             }, 200);
           case '/api/v1/specialties':
-            return _json({'items': [{'id': 1, 'nombre': 'Medicina general', 'descripcion': null}]}, 200);
+            return _json({
+              'items': [
+                {'id': 1, 'nombre': 'Medicina general', 'descripcion': null},
+              ],
+            }, 200);
           case '/api/v1/doctors':
-            return _json({'items': [{'id': 'doc-1', 'nombre': 'Dr. Andrés Mora', 'especialidades': [{'id': 1, 'nombre': 'Medicina general'}], 'duracion_cita_min': 30}]}, 200);
+            return _json({
+              'items': [
+                {
+                  'id': 'doc-1',
+                  'nombre': 'Dr. Andrés Mora',
+                  'especialidades': [
+                    {'id': 1, 'nombre': 'Medicina general'},
+                  ],
+                  'duracion_cita_min': 30,
+                },
+              ],
+            }, 200);
           case '/api/v1/availability':
             final start = DateTime.now()
                 .toUtc()
@@ -312,7 +370,10 @@ void main() {
             }, 201);
           case '/api/v1/payments/checkout':
             if (checkoutConflict != null) {
-              return _json({'detail': checkoutConflict, 'correlation_id': 'c-9'}, 409);
+              return _json({
+                'detail': checkoutConflict,
+                'correlation_id': 'c-9',
+              }, 409);
             }
             if (embedded) {
               return _json({
@@ -367,7 +428,15 @@ void main() {
       await tester.pumpAndSettle();
       await tapText(tester, find.text('Agendar nueva cita'));
       // A lab sample has no specialty or doctor: the times come straight after the service.
-      await tapText(tester, find.descendant(of: find.byType(SlotPicker), matching: find.byType(ChoiceChip)).at(1));
+      await tapText(
+        tester,
+        find
+            .descendant(
+              of: find.byType(SlotPicker),
+              matching: find.byType(ChoiceChip),
+            )
+            .at(1),
+      );
       await tapText(
         tester,
         find
@@ -448,7 +517,10 @@ void main() {
 
         checkoutConflict = 'The payment is still being processed';
         await tapText(tester, find.text('Verificar pago').first);
-        expect(find.textContaining('Estamos confirmando tu pago'), findsWidgets);
+        expect(
+          find.textContaining('Estamos confirmando tu pago'),
+          findsWidgets,
+        );
         expect(find.text('Pagar ahora'), findsNothing);
       },
     );
@@ -514,7 +586,10 @@ void main() {
         await openAt(tester, '/pago/exito');
 
         expect(find.text('Ocurrió un error'), findsOneWidget);
-        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
+        expect(
+          find.textContaining('El pago no se ha completado'),
+          findsOneWidget,
+        );
         expect(find.textContaining('confirmado'), findsNothing);
       },
     );
@@ -525,7 +600,10 @@ void main() {
         await openAt(tester, '/pago/retorno?session_id=cs_test_123');
 
         expect(find.text('Ocurrió un error'), findsOneWidget);
-        expect(find.textContaining('El pago no se ha completado'), findsOneWidget);
+        expect(
+          find.textContaining('El pago no se ha completado'),
+          findsOneWidget,
+        );
         expect(find.textContaining('cs_test_123'), findsNothing);
       },
     );

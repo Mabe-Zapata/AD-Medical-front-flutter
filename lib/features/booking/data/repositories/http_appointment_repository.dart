@@ -140,7 +140,12 @@ class HttpAppointmentRepository implements AppointmentRepository {
       reservationExpiresAt: known.reservationExpiresAt,
       doctor: doctor,
     );
-    return built.copyWith(paymentId: paymentId, refundState: refundState);
+    return built.copyWith(
+      paymentId: paymentId,
+      refundState: refundState,
+      refundEligible: json['reembolso_elegible'] as bool?,
+      refundBlockReason: json['reembolso_motivo'] as String?,
+    );
   }
 
   /// The listing does not say which service it was, so it is shown as a generic laboratory appointment with

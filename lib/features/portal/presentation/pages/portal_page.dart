@@ -14,6 +14,7 @@ import 'package:medicalbooking_portal/app/routes.dart';
 import 'package:medicalbooking_portal/app/widgets/page_shell.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/policies/late_cancellation_policy.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/appointment_card.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/next_appointment_card.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/summary_tiles.dart';
@@ -52,7 +53,10 @@ class _CancelChoice {
 
 /// Confirms a cancellation and collects the optional reason. Dismissing it cancels nothing.
 class _CancelDialog extends StatefulWidget {
-  const _CancelDialog();
+  const _CancelDialog({this.startUtc});
+
+  /// When the appointment starts: a cancellation within [_refundNotice] of it is not refundable.
+  final DateTime? startUtc;
 
   @override
   State<_CancelDialog> createState() => _CancelDialogState();
@@ -60,12 +64,18 @@ class _CancelDialog extends StatefulWidget {
 
 class _CancelDialogState extends State<_CancelDialog> {
   static const _maxReasonLength = 1500;
+  static const _refundNotice = Duration(hours: 48);
   final _reason = TextEditingController();
 
   @override
   void dispose() {
     _reason.dispose();
     super.dispose();
+  }
+
+  bool get _tooLate {
+    final start = widget.startUtc;
+    return start != null && start.difference(DateTime.now()) < _refundNotice;
   }
 
   void _confirm() {
@@ -103,6 +113,31 @@ class _CancelDialogState extends State<_CancelDialog> {
             const Text(
               'El horario quedará libre para otros pacientes.',
               style: TextStyle(fontSize: 15, height: 1.5, color: Tokens.muted),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Tokens.orange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _tooLate
+                        ? 'Faltan menos de 48 horas para tu cita: esta cancelación no tendrá reembolso.'
+                        : 'Las cancelaciones con menos de 48 horas de anticipación no tienen reembolso.',
+                    style: const TextStyle(fontSize: 14, height: 1.45, fontWeight: FontWeight.w700, color: Tokens.slate900),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Si acumulas $lateCancelLimit cancelaciones de este tipo en $lateCancelWindowDays días, '
+                    'no podrás agendar nuevas citas hasta que la más antigua salga de ese periodo.',
+                    style: const TextStyle(fontSize: 13, height: 1.45, color: Tokens.slate700),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -277,7 +312,7 @@ class _PortalPageState extends State<PortalPage> {
   Future<void> _confirmCancel(Appointment appointment) async {
     final choice = await showDialog<_CancelChoice>(
       context: context,
-      builder: (context) => const _CancelDialog(),
+      builder: (context) => _CancelDialog(startUtc: appointment.slot.startUtc),
     );
     if (choice != null) await _controller.cancel(appointment, reason: choice.reason);
   }
