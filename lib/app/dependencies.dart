@@ -22,6 +22,9 @@ import 'package:medicalbooking_portal/features/booking/domain/usecases/list_doct
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_my_appointments.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_catalog_repository.dart';
+import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_device_location.dart';
+import 'package:medicalbooking_portal/features/catalog/data/repositories/geolocator_device_location.dart';
+import 'package:medicalbooking_portal/features/catalog/domain/repositories/device_location_port.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/http_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/static_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
@@ -77,6 +80,7 @@ class AppDependencies {
     required this.clinicalProfiles,
     required this.clinicalHistory,
     required this.getCatalog,
+    required this.deviceLocation,
     required this.getDaySlots,
     required this.listSpecialties,
     required this.listDoctors,
@@ -119,6 +123,7 @@ class AppDependencies {
         load: LoadClinicalProfile(DemoClinicalProfileRepository(db)),
       ),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
+      deviceLocation: const DemoDeviceLocation(),
       getDaySlots: GetDaySlots(appointments),
       listSpecialties: ListSpecialties(appointments),
       listDoctors: ListDoctors(appointments),
@@ -178,6 +183,7 @@ class AppDependencies {
         save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
         load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
       ),
+      deviceLocation: const GeolocatorDeviceLocation(),
       getCatalog: GetCatalog(
         services == null
             ? HttpCatalogRepository(
@@ -257,6 +263,7 @@ class AppDependencies {
   /// The patient's clinical history screen: range, entries, declarations and the event log.
   final ClinicalHistoryController clinicalHistory;
   final GetCatalog getCatalog;
+  final DeviceLocationPort deviceLocation;
   final GetDaySlots getDaySlots;
   final ListSpecialties listSpecialties;
   final ListDoctors listDoctors;

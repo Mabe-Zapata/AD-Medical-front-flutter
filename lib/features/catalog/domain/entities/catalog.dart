@@ -1,10 +1,14 @@
-/// sedes
+/// sedes. Coordinates are optional: a branch without them is listed but never placed on the map.
 class Branch {
-  const Branch({required this.id, required this.name, required this.address});
+  const Branch({required this.id, required this.name, required this.address, this.latitude, this.longitude});
 
   final String id;
   final String name;
   final String address;
+  final double? latitude;
+  final double? longitude;
+
+  bool get hasCoordinates => latitude != null && longitude != null;
 }
 
 /// servicios_medicos. A service with a [specialtyId] is a medical consultation: the patient picks a specialty and a

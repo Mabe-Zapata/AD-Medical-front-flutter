@@ -37,8 +37,21 @@ class DemoDatabase {
   void setSavedCard(String patientId, SavedCard? card) => _savedCards[patientId] = card;
 
   final branches = const [
-    Branch(id: 'branch-central', name: 'Laboratorio Central', address: 'Av. Principal 123 y Calle 5, Quito'),
-    Branch(id: 'branch-north', name: 'Sede Norte', address: 'Av. del Parque 480, Quito'),
+    // Approximate coordinates for Quito: verify each one against the real branch before production.
+    Branch(
+      id: 'branch-central',
+      name: 'Laboratorio Central',
+      address: 'Av. Principal 123 y Calle 5, Quito',
+      latitude: -0.2201,
+      longitude: -78.5123,
+    ),
+    Branch(
+      id: 'branch-north',
+      name: 'Sede Norte',
+      address: 'Av. del Parque 480, Quito',
+      latitude: -0.1836,
+      longitude: -78.4840,
+    ),
   ];
 
   final services = const [
