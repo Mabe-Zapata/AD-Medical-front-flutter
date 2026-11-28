@@ -17,6 +17,7 @@ import 'package:medicalbooking_portal/features/payments/domain/entities/saved_ca
 import 'package:medicalbooking_portal/features/payments/domain/usecases/start_card_setup.dart';
 import 'package:medicalbooking_portal/features/payments/domain/policies/refund_failure.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/reconcile_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/request_refund.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/remove_saved_card.dart';
@@ -31,6 +32,7 @@ class PortalController extends ChangeNotifier {
     required this._cancelAppointment,
     required this._startCheckout,
     required this._getCheckoutStatus,
+    required this._reconcileCheckout,
     required this._requestRefund,
     required this._getRefundStatus,
     required this._getSavedCard,
@@ -56,6 +58,7 @@ class PortalController extends ChangeNotifier {
   final CancelAppointment _cancelAppointment;
   final StartCheckout _startCheckout;
   final GetCheckoutStatus _getCheckoutStatus;
+  final ReconcileCheckout _reconcileCheckout;
   final RequestRefund _requestRefund;
   final GetRefundStatus _getRefundStatus;
   final GetSavedCard _getSavedCard;
@@ -215,11 +218,12 @@ class PortalController extends ChangeNotifier {
     }
   }
 
-  /// Asks the backend whether the payment of [appointment] was confirmed, and says so.
+  /// Asks the backend to settle the payment of [appointment] against the provider, and says where it stands. The
+  /// backend asks Stripe, so a payment already taken is confirmed even when its webhook has not arrived.
   Future<void> checkPayment(Appointment appointment) => _run(() async {
     final patient = _session.patient;
     if (patient == null) return;
-    final status = await _getCheckoutStatus(patientId: patient.id, appointment: appointment);
+    final status = await _reconcileCheckout(patientId: patient.id, appointment: appointment);
     if (status.state == CheckoutState.confirmed) _paid.add(appointment.id);
     _setNotice(_paymentNotice(status));
   });

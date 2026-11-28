@@ -30,6 +30,18 @@ const _invoiceId = '22222222-2222-4222-8222-222222222222';
         if (path.endsWith('/payments/checkout')) {
           return _json({'client_secret': 'cs_x', 'publishable_key': 'pk_x', 'pago_id': _paymentId}, 201);
         }
+        if (path.endsWith('/checkout-status/reconcile')) {
+          // The backend asked Stripe: the payment was taken, so it is confirmed now.
+          return _json({
+            'pago_id': _paymentId,
+            'estado': 'CONFIRMADO',
+            'reintentos_realizados': 0,
+            'reintentos_maximos': 5,
+            'reintentos_agotados': false,
+            'proximo_reintento_en': null,
+            'ultimo_error_codigo': null,
+          }, 200);
+        }
         if (path.endsWith('/checkout-status')) {
           return _json({
             'pago_id': _paymentId,
@@ -160,6 +172,27 @@ void main() {
 
     expect(second.sent.where((r) => r.url.path.endsWith('/invoices')), isEmpty);
     expect(second.sent.last.headers['Idempotency-Key'], firstKey);
+  });
+
+  test('verifying a payment posts to the reconcile endpoint and maps the settled answer', () async {
+    final t = _setup();
+    await t.repo.startCheckout(patientId: 'p', appointmentId: 'a1');
+    final status = await t.repo.reconcileCheckout(patientId: 'p', appointmentId: 'a1');
+    final request = t.sent.last;
+
+    expect(request.method, 'POST');
+    expect(request.url.path, '/api/v1/invoices/$_invoiceId/checkout-status/reconcile');
+    expect(status.state, CheckoutState.confirmed);
+    expect(status.paymentId, _paymentId);
+  });
+
+  test('verifying an appointment with no known invoice is not found, without calling the API', () async {
+    final t = _setup();
+    await expectLater(
+      t.repo.reconcileCheckout(patientId: 'p', appointmentId: 'nope'),
+      throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.notFound)),
+    );
+    expect(t.sent, isEmpty);
   });
 
   test('a refund after a reload finds the payment without asking for the status again', () async {

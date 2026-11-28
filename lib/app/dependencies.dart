@@ -22,6 +22,9 @@ import 'package:medicalbooking_portal/features/booking/domain/usecases/list_doct
 import 'package:medicalbooking_portal/features/booking/domain/usecases/get_my_appointments.dart';
 import 'package:medicalbooking_portal/features/booking/domain/usecases/reserve_appointment.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_catalog_repository.dart';
+import 'package:medicalbooking_portal/features/catalog/data/repositories/demo_device_location.dart';
+import 'package:medicalbooking_portal/features/catalog/data/repositories/geolocator_device_location.dart';
+import 'package:medicalbooking_portal/features/catalog/domain/repositories/device_location_port.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/http_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/data/repositories/static_catalog_repository.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
@@ -49,6 +52,7 @@ import 'package:medicalbooking_portal/features/payments/data/repositories/http_s
 import 'package:medicalbooking_portal/features/payments/data/storage/payment_trail_store_factory.dart';
 import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_checkout_status.dart';
+import 'package:medicalbooking_portal/features/payments/domain/usecases/reconcile_checkout.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/usecases/download_results_report.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_latest_checkout.dart';
 import 'package:medicalbooking_portal/features/payments/domain/usecases/get_saved_card.dart';
@@ -77,6 +81,7 @@ class AppDependencies {
     required this.clinicalProfiles,
     required this.clinicalHistory,
     required this.getCatalog,
+    required this.deviceLocation,
     required this.getDaySlots,
     required this.listSpecialties,
     required this.listDoctors,
@@ -87,6 +92,7 @@ class AppDependencies {
     required this.downloadResultsReport,
     required this.startCheckout,
     required this.getCheckoutStatus,
+    required this.reconcileCheckout,
     required this.getLatestCheckout,
     required this.requestRefund,
     required this.getRefundStatus,
@@ -119,6 +125,7 @@ class AppDependencies {
         load: LoadClinicalProfile(DemoClinicalProfileRepository(db)),
       ),
       getCatalog: GetCatalog(DemoCatalogRepository(db)),
+      deviceLocation: const DemoDeviceLocation(),
       getDaySlots: GetDaySlots(appointments),
       listSpecialties: ListSpecialties(appointments),
       listDoctors: ListDoctors(appointments),
@@ -129,6 +136,7 @@ class AppDependencies {
       downloadResultsReport: DownloadResultsReport(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
+      reconcileCheckout: ReconcileCheckout(payments),
       getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
       getRefundStatus: GetRefundStatus(payments),
@@ -178,6 +186,7 @@ class AppDependencies {
         save: SaveClinicalProfile(HttpClinicalProfileRepository(api)),
         load: LoadClinicalProfile(HttpClinicalProfileRepository(api)),
       ),
+      deviceLocation: const GeolocatorDeviceLocation(),
       getCatalog: GetCatalog(
         services == null
             ? HttpCatalogRepository(
@@ -206,6 +215,7 @@ class AppDependencies {
       downloadResultsReport: DownloadResultsReport(labs),
       startCheckout: StartCheckout(payments),
       getCheckoutStatus: GetCheckoutStatus(payments),
+      reconcileCheckout: ReconcileCheckout(payments),
       getLatestCheckout: GetLatestCheckout(payments),
       requestRefund: RequestRefund(payments),
       getRefundStatus: GetRefundStatus(payments),
@@ -257,6 +267,7 @@ class AppDependencies {
   /// The patient's clinical history screen: range, entries, declarations and the event log.
   final ClinicalHistoryController clinicalHistory;
   final GetCatalog getCatalog;
+  final DeviceLocationPort deviceLocation;
   final GetDaySlots getDaySlots;
   final ListSpecialties listSpecialties;
   final ListDoctors listDoctors;
@@ -267,6 +278,7 @@ class AppDependencies {
   final DownloadResultsReport downloadResultsReport;
   final StartCheckout startCheckout;
   final GetCheckoutStatus getCheckoutStatus;
+  final ReconcileCheckout reconcileCheckout;
   final GetLatestCheckout getLatestCheckout;
   final RequestRefund requestRefund;
   final GetRefundStatus getRefundStatus;

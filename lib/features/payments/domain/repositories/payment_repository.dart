@@ -15,6 +15,10 @@ abstract interface class PaymentRepository {
   /// Where the latest payment attempt of the appointment stands. Needs [knowsPayment].
   Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId});
 
+  /// Asks the backend to settle the latest attempt against the provider, then says where it stands. A payment the
+  /// provider already took is confirmed here, when the webhook has not arrived. Needs [knowsPayment].
+  Future<CheckoutStatus> reconcileCheckout({required String patientId, required String appointmentId});
+
   /// Where the most recent payment attempt started in this run stands, or null when none was started. Used when the
   /// patient comes back from the provider: a return never proves the payment by itself.
   Future<CheckoutStatus?> latestAttempt({required String patientId});

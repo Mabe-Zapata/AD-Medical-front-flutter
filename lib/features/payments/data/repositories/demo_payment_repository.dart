@@ -28,6 +28,11 @@ class DemoPaymentRepository implements PaymentRepository {
     return checkoutStatus(patientId: patientId, appointmentId: _paid.last);
   }
 
+  /// The demo has no provider to ask: its payments are confirmed when they are made, so the status is the answer.
+  @override
+  Future<CheckoutStatus> reconcileCheckout({required String patientId, required String appointmentId}) =>
+      checkoutStatus(patientId: patientId, appointmentId: appointmentId);
+
   @override
   Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId}) async {
     await _db.simulateLatency();

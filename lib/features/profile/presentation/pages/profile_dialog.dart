@@ -98,7 +98,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
           () => _error = describeError(
             error,
             overrides: const {
-              ErrorKind.validation: 'Revisa la altitud (0 a 8848 m) y los cigarrillos por día.',
+              ErrorKind.validation: 'Revisa la altitud (0 a $maxAltitudeM m) y los cigarrillos por día.',
               ErrorKind.forbidden: 'Solo una cuenta de paciente puede guardar su perfil clínico.',
             },
           ),

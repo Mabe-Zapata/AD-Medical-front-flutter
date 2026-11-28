@@ -5,6 +5,14 @@ import 'package:medicalbooking_portal/app/app.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
 
+/// The booking confirmation is a SweetAlert popup: the patient closes it before paying, so the test does too.
+Future<void> _dismissBookingAlert(WidgetTester tester) async {
+  final ok = find.text('Entendido');
+  if (ok.evaluate().isEmpty) return;
+  await tester.tap(ok);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
@@ -394,7 +402,8 @@ void main() {
       expect(find.text('Resumen'), findsOneWidget);
 
       await tapText(tester, find.text('Confirmar reserva'));
-      expect(find.textContaining('creada'), findsOneWidget);
+      expect(find.text('Reserva creada'), findsOneWidget);
+      await _dismissBookingAlert(tester);
       expect(find.text('Bienvenido, María'), findsOneWidget);
     });
 
@@ -499,7 +508,8 @@ void main() {
       await tapText(tester, find.text('Continuar'));
       await tapText(tester, find.text('Confirmar reserva'));
 
-      expect(find.textContaining('creada'), findsOneWidget);
+      expect(find.text('Reserva creada'), findsOneWidget);
+      await _dismissBookingAlert(tester);
     });
   });
 }
