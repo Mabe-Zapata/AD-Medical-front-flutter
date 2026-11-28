@@ -1,5 +1,7 @@
 /// Same limits as the backend (`clinical_profile.py`); checking here gives a clearer message.
-const maxAltitudeM = 8848;
+/// Highest altitude the WHO 2024 haemoglobin table covers (its last band ends at 4999 m). Above it the
+/// adjustment is unknown, so a higher value could never be interpreted; the app refuses it up front.
+const maxAltitudeM = 4999;
 const maxCigarettesPerDay = 200;
 
 enum ProfileProblem { altitude, smoking, cigarettes }

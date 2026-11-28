@@ -9,6 +9,7 @@ import 'package:medicalbooking_portal/features/clinical_history/presentation/lab
 import 'package:medicalbooking_portal/features/clinical_history/presentation/widgets/declaration_form.dart';
 import 'package:medicalbooking_portal/features/clinical_history/presentation/widgets/history_entries.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/section_label.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/calendar_date_field.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/pagination_bar.dart';
@@ -48,6 +49,14 @@ class _ClinicalHistoryDialogState extends State<ClinicalHistoryDialog> {
   }
 
   ClinicalHistoryController get _controller => AppScope.of(context).clinicalHistory;
+
+  /// Calendar bounds: no future dates, and no date before 1900 (a history never reaches further back).
+  static DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  static final DateTime _earliestDate = DateTime(1900);
 
   Future<void> _refresh() async {
     final controller = _controller;
@@ -186,19 +195,25 @@ class _ClinicalHistoryDialogState extends State<ClinicalHistoryDialog> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             SizedBox(
-              width: 170,
-              child: TextField(
+              width: 190,
+              child: CalendarDateField(
                 controller: _from,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(labelText: 'Desde (año-mes-día)', isDense: true),
+                label: 'Desde',
+                firstDate: _earliestDate,
+                lastDate: parseDay(_to.text.trim()) ?? _today,
+                optional: true,
+                onChanged: () => setState(() => _rangeFormatError = null),
               ),
             ),
             SizedBox(
-              width: 170,
-              child: TextField(
+              width: 190,
+              child: CalendarDateField(
                 controller: _to,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(labelText: 'Hasta (año-mes-día)', isDense: true),
+                label: 'Hasta',
+                firstDate: parseDay(_from.text.trim()) ?? _earliestDate,
+                lastDate: _today,
+                optional: true,
+                onChanged: () => setState(() => _rangeFormatError = null),
               ),
             ),
             OutlinedButton(onPressed: _applyDates, child: const Text('Aplicar fechas')),

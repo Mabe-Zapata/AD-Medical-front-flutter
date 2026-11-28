@@ -90,7 +90,7 @@ void main() {
 
     await tapText(tester, find.text('Guardar perfil'));
 
-    expect(find.text('Escribe un número entre 0 y 8848.'), findsOneWidget);
+    expect(find.text('Escribe un número entre 0 y 4999.'), findsOneWidget);
     expect(find.text('Elige una opción.'), findsOneWidget);
     expect(find.text('Perfil guardado'), findsNothing);
   });

@@ -6,6 +6,7 @@ import 'package:medicalbooking_portal/features/clinical_history/domain/policies/
 import 'package:medicalbooking_portal/features/clinical_history/presentation/labels.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
 import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/calendar_date_field.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 
 /// Form to declare one entry of a kind the patient may declare. Fields go one under another so the
@@ -273,11 +274,11 @@ class _DeclarationFormState extends State<DeclarationForm> {
     _gap,
     _text(_frequency, 'Frecuencia (opcional)', error: _errorFor(problems, const ['frequency'])),
     _gap,
-    _text(
+    _dateField(
       _startDate,
-      'Desde cuándo (opcional, año-mes-día)',
+      'Desde cuándo (opcional)',
       error: _errorFor(problems, const ['date', 'future']),
-      keyboardType: TextInputType.datetime,
+      optional: true,
     ),
   ];
 
@@ -296,17 +297,30 @@ class _DeclarationFormState extends State<DeclarationForm> {
       keyboardType: TextInputType.number,
     ),
     _gap,
-    _text(
+    _dateField(
       _date,
-      'Fecha de la dosis (año-mes-día)',
+      'Fecha de la dosis',
       error: _errorFor(problems, const ['date', 'future']),
-      keyboardType: TextInputType.datetime,
     ),
     _gap,
     _text(_lot, 'Lote (opcional)', error: _errorFor(problems, const ['lot'])),
   ];
 
   static const _gap = SizedBox(height: 14);
+
+  /// A date picked from the calendar: nothing after today, nothing before 1900.
+  Widget _dateField(TextEditingController controller, String label, {String? error, bool optional = false}) {
+    final now = DateTime.now();
+    return CalendarDateField(
+      controller: controller,
+      label: label,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(now.year, now.month, now.day),
+      errorText: error,
+      optional: optional,
+      onChanged: () => setState(() {}),
+    );
+  }
 
   Widget _text(
     TextEditingController controller,
