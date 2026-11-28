@@ -12,14 +12,18 @@ class SiteHeader extends StatelessWidget {
     required this.signedIn,
     required this.onSection,
     required this.onSignIn,
+    required this.onRegister,
     required this.onOpenPortal,
+    required this.onChangePassword,
     required this.onSignOut,
   });
 
   final bool signedIn;
   final void Function(String id) onSection;
   final VoidCallback onSignIn;
+  final VoidCallback onRegister;
   final VoidCallback onOpenPortal;
+  final VoidCallback onChangePassword;
   final VoidCallback onSignOut;
 
   static const sections = {'home': 'Inicio', 'about': 'Nosotros', 'product': 'Pruebas'};
@@ -75,12 +79,20 @@ class SiteHeader extends StatelessWidget {
           if (signedIn) ...[
             TextButton(onPressed: onOpenPortal, child: const Text('Mi portal')),
             IconButton(
+              tooltip: 'Cambiar contraseña',
+              onPressed: onChangePassword,
+              icon: const Icon(Icons.lock_reset, size: 20, color: Tokens.muted),
+            ),
+            IconButton(
               tooltip: 'Cerrar sesión',
               onPressed: onSignOut,
               icon: const Icon(Icons.logout, size: 20, color: Tokens.muted),
             ),
-          ] else
+          ] else ...[
+            if (wide) TextButton(onPressed: onRegister, child: const Text('Crear cuenta')),
+            const SizedBox(width: 8),
             _SignInPill(label: wide ? 'INICIAR SESIÓN' : 'ENTRAR', onPressed: onSignIn),
+          ],
         ],
       ),
     );
@@ -99,7 +111,7 @@ class _LogoMark extends StatelessWidget {
       gradient: const LinearGradient(
         begin: Alignment.bottomLeft,
         end: Alignment.topRight,
-        colors: [Color(0xFFF06110), Color(0xFFF9822A)],
+        colors: [Tokens.gradientStart, Tokens.gradientEnd],
       ),
       boxShadow: [BoxShadow(color: Tokens.orange.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3))],
     ),

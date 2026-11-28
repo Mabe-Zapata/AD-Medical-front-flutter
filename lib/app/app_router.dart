@@ -1,36 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:medicalbooking_portal/app/dependencies.dart';
 import 'package:medicalbooking_portal/app/routes.dart';
-import 'package:medicalbooking_portal/features/auth/presentation/pages/login_page.dart';
-import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_page.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/auth_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/change_password_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/forgot_password_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/reset_password_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/session_expired_dialog.dart';
+import 'package:medicalbooking_portal/features/auth/presentation/pages/verify_email_dialog.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/pages/booking_dialog.dart';
 import 'package:medicalbooking_portal/features/catalog/presentation/pages/landing_page.dart';
+import 'package:medicalbooking_portal/features/clinical_history/presentation/pages/clinical_history_dialog.dart';
+import 'package:medicalbooking_portal/features/payments/presentation/pages/payment_result_dialog.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/pages/portal_page.dart';
+import 'package:medicalbooking_portal/features/profile/presentation/pages/profile_dialog.dart';
+import 'package:medicalbooking_portal/shared/presentation/layout/modal_route.dart';
+import 'package:medicalbooking_portal/core/navigation/return_address.dart';
 
 class AppRouter {
   const AppRouter(this._dependencies);
 
   /// Pages that need a signed-in patient.
-  static const _protected = {Routes.book, Routes.portal};
+  static const _protected = {Routes.book, Routes.portal, Routes.profile, Routes.changePassword, Routes.history};
 
   final AppDependencies _dependencies;
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    final name = Uri.parse(settings.name ?? Routes.home).path;
+    final uri = Uri.parse(settings.name ?? Routes.home);
+    final name = uri.path;
     final argument = settings.arguments is String ? settings.arguments as String : null;
 
     if (_protected.contains(name) && !_dependencies.session.isSignedIn) {
-      return MaterialPageRoute(
-        settings: const RouteSettings(name: Routes.login),
-        builder: (_) => LoginPage(next: name),
-      );
+      return _modal(const RouteSettings(name: Routes.login), AuthDialog(next: name));
     }
 
-    final Widget page = switch (name) {
-      Routes.login => LoginPage(next: argument),
-      Routes.book => BookingPage(serviceId: argument),
-      Routes.portal => PortalPage(justBookedId: argument),
-      _ => const LandingPage(),
+    return switch (name) {
+      Routes.login => _modal(
+        settings,
+        AuthDialog(
+          next: argument,
+          expired: uri.queryParameters['motivo'] == 'expirada',
+          mode: uri.queryParameters['modo'] == 'registro' ? AuthMode.register : AuthMode.login,
+        ),
+      ),
+      Routes.register => _modal(settings, AuthDialog(next: argument, mode: AuthMode.register)),
+      Routes.verify => _modal(settings, VerifyEmailDialog(token: uri.queryParameters['token'])),
+      Routes.forgotPassword => _modal(settings, const ForgotPasswordDialog()),
+      Routes.resetPassword => _modal(settings, ResetPasswordDialog(token: uri.queryParameters['token'])),
+      Routes.book => _modal(settings, BookingDialog(serviceId: argument)),
+      Routes.sessionExpired => _modal(settings, const SessionExpiredDialog()),
+      Routes.profile => _modal(settings, const ProfileDialog()),
+      Routes.changePassword => _modal(settings, const ChangePasswordDialog()),
+      Routes.history => _modal(settings, const ClinicalHistoryDialog()),
+      Routes.portal => _page(settings, PortalPage(justBookedId: argument)),
+      // The return never says whether the card was charged, so it gets the same "we are confirming" text.
+      Routes.paymentDone || Routes.paymentReturn => _modal(settings, const PaymentResultDialog(completed: true)),
+      Routes.paymentCancelled => _modal(settings, const PaymentResultDialog(completed: false)),
+      _ => _page(settings, const LandingPage()),
     };
-    return MaterialPageRoute(settings: settings, builder: (_) => page);
   }
+
+  /// What the app shows when it opens. The link of the activation email (`#/verificar?token=...`) opens
+  /// the verification modal over the landing page, and the payment provider's return addresses
+  /// (`/pago/exito`, `/pago/cancelado`, `/pago/retorno`, plain paths) open the payment result; any other address opens
+  /// the landing page.
+  List<Route<dynamic>> initialRoutes(String initialRoute) {
+    final home = onGenerateRoute(const RouteSettings(name: Routes.home));
+    final path = Uri.tryParse(initialRoute)?.path;
+    if (path == Routes.verify) return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
+    if (path == Routes.resetPassword) return [home, onGenerateRoute(RouteSettings(name: initialRoute))];
+    final returned = const {Routes.paymentDone, Routes.paymentCancelled, Routes.paymentReturn}.contains(path) ? path : _returnPath(Uri.base.path);
+    if (returned == null) return [home];
+    clearReturnAddress();
+    return [home, onGenerateRoute(RouteSettings(name: returned))];
+  }
+
+  static String? _returnPath(String path) =>
+      const {Routes.paymentDone, Routes.paymentCancelled, Routes.paymentReturn}.where(path.endsWith).firstOrNull;
+
+  /// Flutter web only scrolls with the keyboard (arrows, Page Up/Down, Space) when something inside the
+  /// route has focus; without it every key press is dropped. The autofocus node makes it work on arrival.
+  static Route<dynamic> _page(RouteSettings settings, Widget page) =>
+      MaterialPageRoute(settings: settings, builder: (_) => Focus(autofocus: true, child: page));
+
+  /// Sign-in, sign-up and booking are modals over the page the patient came from.
+  static Route<dynamic> _modal(RouteSettings settings, Widget dialog) =>
+      modalRoute(settings: settings, builder: (_) => dialog);
 }

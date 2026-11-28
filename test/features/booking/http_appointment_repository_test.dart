@@ -1,0 +1,249 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/core/http/api_client.dart';
+import 'package:medicalbooking_portal/core/time/branch_time.dart';
+import 'package:medicalbooking_portal/features/booking/data/repositories/http_appointment_repository.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/reservation_result.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
+import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
+
+const _serviceId = '11111111-2222-4333-8444-555555555555';
+const _slotId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+const _service = MedicalService(id: _serviceId, name: 'Toma de sangre', durationMin: 20, basePrice: 8);
+final _slot = TimeSlot(
+  id: _slotId,
+  startUtc: DateTime.utc(2026, 11, 4, 14),
+  endUtc: DateTime.utc(2026, 11, 4, 14, 30),
+  status: SlotStatus.available,
+  doctorId: 'doc-1',
+);
+
+http.Response _json(Object body, int status) =>
+    http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});
+
+HttpAppointmentRepository _repo(MockClient client) => HttpAppointmentRepository(
+  ApiClient(client: client, baseUrl: 'http://api.test/api/v1', token: () => 'jwt'),
+  now: () => DateTime.utc(2026, 11, 3, 12),
+);
+
+void main() {
+  test('asks for the whole branch day in UTC and maps only free slots', () async {
+    late Uri seen;
+    final repo = _repo(
+      MockClient((request) async {
+        seen = request.url;
+        return _json({
+          'items': [
+            {
+              'horario_id': _slotId,
+              'medico_id': 'doc-1',
+              'inicio_utc': '2026-11-04T14:00:00+00:00',
+              'fin_utc': '2026-11-04T14:30:00+00:00',
+            },
+          ],
+        }, 200);
+      }),
+    );
+
+    final slots = await repo.slotsForDay(DateTime(2026, 11, 4));
+
+    // Branch midnight (UTC-5) is 05:00 UTC.
+    expect(seen.queryParameters['desde'], '2026-11-04T05:00:00.000+00:00');
+    expect(seen.queryParameters['hasta'], '2026-11-05T05:00:00.000+00:00');
+    expect(slots.single.id, _slotId);
+    expect(slots.single.isAvailable, isTrue);
+    expect(slots.single.doctorId, 'doc-1');
+    expect(branchTime(slots.single.startUtc).hour, 9);
+  });
+
+  test('asks the availability of the service window, so only its own hours come back', () async {
+    late Uri seen;
+    final repo = _repo(
+      MockClient((request) async {
+        seen = request.url;
+        return _json({'items': <Map<String, dynamic>>[]}, 200);
+      }),
+    );
+
+    await repo.slotsForDay(DateTime(2026, 11, 4), serviceId: _serviceId);
+
+    expect(seen.queryParameters['servicio_id'], _serviceId);
+  });
+
+  test('a listed appointment carries its doctor contact, and no doctor when the API omits it', () async {
+    final repo = _repo(
+      MockClient((request) async => _json({
+        'items': [
+          {
+            'id': 'apt-1',
+            'estado': 'CONFIRMADA',
+            'inicio': '2026-11-04T14:00:00+00:00',
+            'fin': '2026-11-04T14:30:00+00:00',
+            'medico': {'id': 'doc-1', 'nombre': 'Dra. Lucía Vera', 'registro_profesional': 'JVPM-1', 'telefono': '2222-3333'},
+          },
+          {
+            'id': 'apt-2',
+            'estado': 'CANCELADA',
+            'inicio': '2026-11-05T14:00:00+00:00',
+            'fin': '2026-11-05T14:30:00+00:00',
+          },
+        ],
+      }, 200)),
+    );
+
+    final listed = await repo.appointmentsOf('u1');
+
+    expect(listed[0].doctor?.name, 'Dra. Lucía Vera');
+    expect(listed[0].doctor?.registration, 'JVPM-1');
+    expect(listed[0].doctor?.phone, '2222-3333');
+    expect(listed[1].doctor, isNull);
+  });
+
+  test('reserves with a fresh Idempotency-Key and remembers the appointment', () async {
+    late http.Request seen;
+    final repo = _repo(
+      MockClient((request) async {
+        seen = request;
+        return _json({
+          'id': 'apt-1',
+          'estado': 'PENDIENTE_PAGO',
+          'horario_id': _slotId,
+          'servicio_id': _serviceId,
+          'motivo': 'chequeo',
+          'expiracion_reserva': '2026-11-03T12:15:00+00:00',
+        }, 201);
+      }),
+    );
+
+    final result = await repo.reserve(patientId: 'u1', service: _service, slot: _slot, reason: 'chequeo');
+
+    final appointment = (result as Reserved).appointment;
+    expect(appointment.status, AppointmentStatus.pendingPayment);
+    expect(appointment.reservationExpiresAt, DateTime.utc(2026, 11, 3, 12, 15));
+    expect(jsonDecode(seen.body), {'horario_id': _slotId, 'servicio_id': _serviceId, 'motivo': 'chequeo'});
+    expect(seen.headers['Idempotency-Key'], isNotEmpty);
+  });
+
+  test('lists the appointments from the API, and keeps what this run knows about the ones it reserved', () async {
+    late Uri listed;
+    final repo = _repo(
+      MockClient((request) async {
+        if (request.method == 'GET') {
+          listed = request.url;
+          return _json({
+            'items': [
+              {'id': 'apt-1', 'estado': 'CONFIRMADA', 'inicio': '2026-11-04T14:00:00Z', 'fin': '2026-11-04T14:20:00Z'},
+              {'id': 'apt-old', 'estado': 'COMPLETADA', 'inicio': '2026-10-01T15:00:00Z', 'fin': '2026-10-01T15:30:00Z'},
+            ],
+          }, 200);
+        }
+        return _json({'id': 'apt-1', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId, 'motivo': 'chequeo'}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot, reason: 'chequeo');
+
+    final appointments = await repo.appointmentsOf('u1');
+
+    expect(listed.path, '/api/v1/appointments');
+    // The state comes from the API, the details from what this run remembers.
+    final mine = appointments.firstWhere((a) => a.id == 'apt-1');
+    expect(mine.status, AppointmentStatus.confirmed);
+    expect(mine.service.name, 'Toma de sangre');
+    expect(mine.reason, 'chequeo');
+    // An appointment of an earlier visit is shown with no invented service or price.
+    final old = appointments.firstWhere((a) => a.id == 'apt-old');
+    expect(old.status, AppointmentStatus.completed);
+    expect(old.service.name, 'Cita de laboratorio');
+    expect(old.service.basePrice, 0);
+    expect(old.service.durationMin, 30);
+    expect(old.slot.startUtc, DateTime.utc(2026, 10, 1, 15));
+  });
+
+  test('omits the reason when there is none', () async {
+    late http.Request seen;
+    final repo = _repo(
+      MockClient((request) async {
+        seen = request;
+        return _json({'id': 'a', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot);
+    expect(jsonDecode(seen.body), {'horario_id': _slotId, 'servicio_id': _serviceId});
+  });
+
+  test('a 409 means another patient took the slot', () async {
+    final repo = _repo(MockClient((_) async => _json({'detail': 'slot unavailable'}, 409)));
+    expect(await repo.reserve(patientId: 'u1', service: _service, slot: _slot), isA<SlotTaken>());
+  });
+
+  test('other failures are thrown, and a service that is not a UUID is refused before the request', () async {
+    var requests = 0;
+    final repo = _repo(
+      MockClient((_) async {
+        requests++;
+        return _json({'detail': 'down'}, 503);
+      }),
+    );
+
+    await expectLater(
+      repo.reserve(patientId: 'u1', service: _service, slot: _slot),
+      throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.unavailable)),
+    );
+    const demoService = MedicalService(id: 'svc-blood', name: 'x', durationMin: 1, basePrice: 1);
+    await expectLater(
+      repo.reserve(patientId: 'u1', service: demoService, slot: _slot),
+      throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.validation)),
+    );
+    expect(requests, 1);
+  });
+
+  test('cancels an appointment and reports it as cancelled, even one this run did not reserve', () async {
+    final repo = _repo(
+      MockClient((request) async {
+        if (request.url.path.endsWith('/cancel')) return _json({'id': 'apt-1', 'estado': 'CANCELADA'}, 200);
+        return _json({'id': 'apt-1', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot);
+
+    final cancelled = await repo.cancel(patientId: 'u1', appointmentId: 'apt-1');
+    final other = await repo.cancel(patientId: 'u1', appointmentId: 'apt-from-before');
+
+    expect(cancelled.status, AppointmentStatus.cancelled);
+    expect(cancelled.holdsSlot, isFalse);
+    expect(other.status, AppointmentStatus.cancelled);
+  });
+
+  test('sends the optional patient reason trimmed, and no body when it is blank', () async {
+    final bodies = <String>[];
+    final repo = _repo(
+      MockClient((request) async {
+        if (request.url.path.endsWith('/cancel')) {
+          bodies.add(request.body);
+          return _json({'id': 'apt-1', 'estado': 'CANCELADA'}, 200);
+        }
+        return _json({'id': 'apt-1', 'estado': 'PENDIENTE_PAGO', 'horario_id': _slotId, 'servicio_id': _serviceId}, 201);
+      }),
+    );
+    await repo.reserve(patientId: 'u1', service: _service, slot: _slot);
+
+    await repo.cancel(patientId: 'u1', appointmentId: 'apt-1', reason: '  Me surgió un viaje  ');
+    await repo.cancel(patientId: 'u1', appointmentId: 'apt-1', reason: '   ');
+
+    expect(jsonDecode(bodies.first), {'motivo_texto': 'Me surgió un viaje'});
+    expect(bodies.last, isEmpty);
+  });
+
+  test('cancelling someone else\'s appointment surfaces the API refusal', () async {
+    final repo = _repo(MockClient((_) async => _json({'detail': 'forbidden'}, 403)));
+    await expectLater(
+      repo.cancel(patientId: 'u1', appointmentId: 'apt-9'),
+      throwsA(isA<AppError>().having((e) => e.kind, 'kind', ErrorKind.forbidden)),
+    );
+  });
+}

@@ -3,10 +3,11 @@ import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/format/es_format.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/widgets/date_block.dart';
+import 'package:medicalbooking_portal/features/payments/domain/policies/refund_failure.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/status_chip.dart';
-import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 
-(String, Color) _statusLabel(AppointmentStatus status) => switch (status) {
+(String, Color) appointmentStatusLabel(AppointmentStatus status) => switch (status) {
   AppointmentStatus.pendingPayment => ('Pago pendiente', Tokens.warning),
   AppointmentStatus.confirmed => ('Confirmada', Tokens.success),
   AppointmentStatus.completed => ('Completada', Tokens.muted),
@@ -15,56 +16,191 @@ import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
   AppointmentStatus.noShow => ('No asistió', Tokens.danger),
 };
 
+/// A short, recognizable reference: a listed appointment has a long UUID.
+String appointmentRef(String id) => id.length > 8 ? id.substring(0, 8).toUpperCase() : id;
+
+/// Presentational: one appointment as a compact row (date tile, what and when, state), with the actions that make
+/// sense for that state underneath on a phone and at the end of the row on a wide screen.
 class AppointmentCard extends StatelessWidget {
-  const AppointmentCard(this.appointment, {super.key});
+  const AppointmentCard(this.appointment, {super.key, this.onCancel, this.onPay, this.onCheckPayment, this.onRefund, this.processing = false, this.paid = false});
 
   final Appointment appointment;
+
+  /// The payment was sent and the bank has not confirmed it yet: no pay or cancel buttons, a notice instead.
+  final bool processing;
+
+  /// The backend confirmed the payment, but the appointment still says it waits for it: no pay or verify buttons.
+  final bool paid;
+
+  /// Shown only while the appointment still holds its slot.
+  final VoidCallback? onCancel;
+
+  /// Shown only while the appointment waits for payment.
+  final VoidCallback? onPay;
+
+  /// Shown while the payment waits for the bank: asks the backend where it stands (and confirms it if it was paid).
+  final VoidCallback? onCheckPayment;
+
+  /// Shown only on a cancelled appointment whose payment can be asked back.
+  final VoidCallback? onRefund;
 
   @override
   Widget build(BuildContext context) {
     final a = appointment;
-    final (label, color) = _statusLabel(a.status);
+    final pending = a.status == AppointmentStatus.pendingPayment && !paid;
+    final inProcess = pending && processing;
+    final (label, color) = paid
+        ? ('Pago confirmado', Tokens.success)
+        : inProcess
+        ? ('Procesando pago', Tokens.info)
+        : appointmentStatusLabel(a.status);
+    final start = branchTime(a.slot.startUtc);
     final expires = a.reservationExpiresAt;
-    return Panel(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(gradient: Tokens.brandGradient, borderRadius: BorderRadius.circular(Tokens.radiusSm + 4)),
-            child: const Icon(Icons.event_available_outlined, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(a.service.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Tokens.slate900)),
-                const SizedBox(height: 2),
-                Text(
-                  '${dateTimeLabel(branchTime(a.slot.startUtc))} · ${a.service.durationMin} min · ${a.id}',
-                  style: const TextStyle(color: Tokens.muted, fontSize: 12),
-                ),
-                if (a.reason != null) ...[
-                  const SizedBox(height: 6),
-                  Text(a.reason!, style: const TextStyle(color: Tokens.slate600, fontSize: 13)),
-                ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
+    final price = a.service.basePrice > 0 ? money(a.service.basePrice, a.service.currency) : null;
+    final doctor = a.doctor;
+    // The doctor and how to reach them; the phone appears only when the API sends one.
+    final doctorLine = doctor == null
+        ? null
+        : [doctor.name, if (doctor.phone != null) 'Tel. ${doctor.phone}'].join(' · ');
+    // Refund advice for a cancelled appointment: a tag when the refund went through (or is on its way), and a
+    // notice with the reason when the backend will not refund it and nothing was refunded yet.
+    final cancelled = a.status == AppointmentStatus.cancelled;
+    final refundDone = cancelled && a.refundState == 'PROCESADO';
+    final refundInProgress = cancelled && a.refundState == 'PENDIENTE';
+    final refundTag = refundDone
+        ? StatusChip('Reembolsado', Tokens.success)
+        : refundInProgress
+        ? StatusChip('Reembolso en proceso', Tokens.info)
+        : null;
+    final refundBlocked =
+        cancelled && !refundDone && !refundInProgress && a.refundEligible == false && a.refundBlockReason != null;
+    final details = [
+      '${timeLabel(start)} · ${a.service.durationMin} min',
+      ?price,
+      ?doctorLine,
+      if (a.status == AppointmentStatus.confirmed) 'Pagada',
+      if (a.reason != null) a.reason!,
+      'Ref: ${appointmentRef(a.id)}',
+    ].join(' · ');
+    final actions = [
+      if (onPay != null && pending && !inProcess)
+        FilledButton.icon(onPressed: onPay, icon: const Icon(Icons.lock_outline, size: 18), label: const Text('Pagar ahora')),
+      if (onCheckPayment != null && inProcess)
+        TextButton(onPressed: onCheckPayment, child: const Text('Verificar pago')),
+      if (onRefund != null && a.status == AppointmentStatus.cancelled)
+        TextButton(onPressed: onRefund, child: const Text('Pedir reembolso')),
+      if (onCancel != null && a.cancellableAt(DateTime.now()) && !inProcess)
+        TextButton(
+          onPressed: onCancel,
+          style: TextButton.styleFrom(foregroundColor: Tokens.danger),
+          child: const Text('Cancelar cita'),
+        ),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(Tokens.radiusMd),
+        border: Border.all(color: Tokens.slate200),
+        boxShadow: [BoxShadow(color: Tokens.blueDeep.withValues(alpha: 0.06), blurRadius: 18, offset: const Offset(0, 8))],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 640;
+          final info = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(a.service.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: Tokens.slate900)),
+              const SizedBox(height: 2),
+              Text(details, style: const TextStyle(fontSize: 13, color: Tokens.muted)),
+            ],
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  DateBlock(start),
+                  const SizedBox(width: 16),
+                  Expanded(child: info),
+                  if (wide) ...[
+                    const SizedBox(width: 12),
                     StatusChip(label, color),
-                    if (a.status == AppointmentStatus.pendingPayment && expires != null)
-                      StatusChip('Retenida hasta las ${timeLabel(branchTime(expires))}', Tokens.warning),
+                    if (refundTag != null) ...[const SizedBox(width: 8), refundTag],
+                    for (final action in actions) ...[const SizedBox(width: 8), action],
                   ],
+                ],
+              ),
+              if (!wide) ...[
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [StatusChip(label, color), ?refundTag, ...actions]),
+              ],
+              if (inProcess) ...[
+                const SizedBox(height: 12),
+                const _Notice(
+                  icon: Icons.hourglass_top_rounded,
+                  text: 'Pago pendiente de procesamiento. Tu cita se confirmará en cuanto el banco avise.',
+                  background: Tokens.blueTint,
+                  border: Tokens.blueSoft,
+                  foreground: Tokens.blueText,
+                  bold: true,
+                ),
+              ] else if (pending && expires != null) ...[
+                const SizedBox(height: 12),
+                _Notice(
+                  icon: Icons.timer_outlined,
+                  text: 'Retenida hasta las ${timeLabel(branchTime(expires))}. Págala antes para no perder el horario.',
+                  background: Tokens.orangeTint,
+                  border: Tokens.orangeSoft,
+                  foreground: Tokens.slate700,
                 ),
               ],
-            ),
-          ),
-        ],
+              if (refundBlocked) ...[
+                const SizedBox(height: 12),
+                _Notice(
+                  icon: Icons.info_outline_rounded,
+                  text: refundBlockMessage(a.refundBlockReason!),
+                  background: Tokens.orangeTint,
+                  border: Tokens.orangeSoft,
+                  foreground: Tokens.slate900,
+                  bold: true,
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.icon, required this.text, required this.background, required this.border, required this.foreground, this.bold = false});
+
+  final IconData icon;
+  final String text;
+  final Color background;
+  final Color border;
+  final Color foreground;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: foreground),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 13, color: foreground, height: 1.4, fontWeight: bold ? FontWeight.w600 : FontWeight.w400),
+          ),
+        ),
+      ],
+    ),
+  );
 }

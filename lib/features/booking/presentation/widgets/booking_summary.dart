@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/error_banner.dart';
 import 'package:medicalbooking_portal/core/design/tokens.dart';
 import 'package:medicalbooking_portal/core/format/es_format.dart';
 import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
+import 'package:medicalbooking_portal/shared/presentation/error_message.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/info_banner.dart';
 import 'package:medicalbooking_portal/shared/presentation/molecules/panel.dart';
 
@@ -12,8 +14,10 @@ class BookingSummary extends StatelessWidget {
   const BookingSummary({
     super.key,
     required this.service,
+    this.doctorName,
     required this.slot,
     required this.conflictedSlot,
+    required this.error,
     required this.submitting,
     required this.canConfirm,
     required this.holdMinutes,
@@ -21,8 +25,10 @@ class BookingSummary extends StatelessWidget {
   });
 
   final MedicalService service;
+  final String? doctorName;
   final TimeSlot? slot;
   final TimeSlot? conflictedSlot;
+  final ErrorView? error;
   final bool submitting;
   final bool canConfirm;
   final int holdMinutes;
@@ -35,34 +41,61 @@ class BookingSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Resumen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Tokens.slate900)),
+          const Text(
+            'Resumen',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Tokens.slate900,
+            ),
+          ),
           const SizedBox(height: 16),
           _Row('Servicio', service.name),
+          if (doctorName != null) _Row('Médico', doctorName!),
           _Row('Duración', '${service.durationMin} min'),
-          _Row('Cuándo', slot == null ? 'Elige una hora' : dateTimeLabel(branchTime(slot!.startUtc))),
+          _Row(
+            'Cuándo',
+            slot == null
+                ? 'Elige una hora'
+                : dateTimeLabel(branchTime(slot!.startUtc)),
+          ),
           const Divider(height: 28),
-          _Row('Precio', money(service.basePrice, service.currency), bold: true),
+          _Row(
+            'Precio',
+            money(service.basePrice, service.currency),
+            bold: true,
+          ),
           const SizedBox(height: 20),
           if (conflict != null) ...[
             InfoBanner(
-              message: 'Otro paciente acaba de reservar las ${timeLabel(branchTime(conflict.startUtc))}. Elige otra hora.',
+              message:
+                  'Otro paciente acaba de reservar las ${timeLabel(branchTime(conflict.startUtc))}. Elige otra hora.',
               color: Tokens.danger,
               icon: Icons.event_busy_outlined,
             ),
             const SizedBox(height: 16),
           ],
+          if (error != null) ...[
+            ErrorBanner(error: error!),
+            const SizedBox(height: 16),
+          ],
           SizedBox(
             width: double.infinity,
             child: GradientButton(
-              label: submitting ? 'Verificando disponibilidad…' : 'Confirmar reserva',
+              label: submitting
+                  ? 'Verificando disponibilidad…'
+                  : 'Confirmar reserva',
               onPressed: canConfirm ? onConfirm : null,
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            'El horario se retiene $holdMinutes minutos. El pago es el siguiente paso de la '
-            'plataforma y no forma parte de esta demo.',
-            style: const TextStyle(fontSize: 12, color: Tokens.muted, height: 1.5),
+            'El horario se retiene $holdMinutes minutos. Después de reservar puedes pagar la cita desde tu portal.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Tokens.muted,
+              height: 1.5,
+            ),
           ),
         ],
       ),

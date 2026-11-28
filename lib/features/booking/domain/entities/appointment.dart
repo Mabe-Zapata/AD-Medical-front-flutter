@@ -1,3 +1,4 @@
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment_doctor.dart';
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 
@@ -18,6 +19,11 @@ class Appointment {
     required this.bookedAt,
     this.reason,
     this.reservationExpiresAt,
+    this.doctor,
+    this.paymentId,
+    this.refundState,
+    this.refundEligible,
+    this.refundBlockReason,
   });
 
   final String id;
@@ -29,7 +35,52 @@ class Appointment {
   final DateTime bookedAt;
   final DateTime? reservationExpiresAt;
 
+  /// Who attends the appointment, as the listing says it; null when the API does not name a doctor.
+  final AppointmentDoctor? doctor;
+
+  /// The confirmed payment of the appointment, as the listing says it; null when it was not paid.
+  final String? paymentId;
+
+  /// The state of the newest refund (`PENDIENTE`, `PROCESADO`, `FALLIDO`); null when there is none.
+  final String? refundState;
+
+  /// Whether the backend would accept a refund request for this appointment right now; null when the
+  /// listing did not say.
+  final bool? refundEligible;
+
+  /// The rule code that blocks the refund (CANCELACION_TARDIA, FUERA_DE_VENTANA...).
+  final String? refundBlockReason;
+
+  /// Patients and doctors may cancel until this long after the start; the API enforces the same rule.
+  static const cancellationWindow = Duration(hours: 1);
+
   /// Active appointments hold their slot (see UX_citas_horario_activa).
   bool get holdsSlot =>
       status == AppointmentStatus.pendingPayment || status == AppointmentStatus.confirmed;
+
+  /// Active and still inside the cancellation window at [now].
+  bool cancellableAt(DateTime now) =>
+      holdsSlot && !now.toUtc().isAfter(slot.startUtc.add(cancellationWindow));
+
+  Appointment copyWith({
+    AppointmentStatus? status,
+    String? paymentId,
+    String? refundState,
+    bool? refundEligible,
+    String? refundBlockReason,
+  }) => Appointment(
+    id: id,
+    patientId: patientId,
+    service: service,
+    slot: slot,
+    status: status ?? this.status,
+    bookedAt: bookedAt,
+    reason: reason,
+    reservationExpiresAt: reservationExpiresAt,
+    doctor: doctor,
+    paymentId: paymentId ?? this.paymentId,
+    refundState: refundState ?? this.refundState,
+    refundEligible: refundEligible ?? this.refundEligible,
+    refundBlockReason: refundBlockReason ?? this.refundBlockReason,
+  );
 }

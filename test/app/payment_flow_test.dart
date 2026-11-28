@@ -1,0 +1,630 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:medicalbooking_portal/app/app.dart';
+import 'package:medicalbooking_portal/app/dependencies.dart';
+import 'package:medicalbooking_portal/features/auth/data/session/memory_session_store.dart';
+import 'package:medicalbooking_portal/features/booking/presentation/widgets/slot_picker.dart';
+import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
+import 'package:medicalbooking_portal/shared/presentation/atoms/gradient_button.dart';
+
+http.Response _json(Object body, int status) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
+
+/// The booking confirmation is a SweetAlert popup: the patient closes it before paying, so the test does too.
+Future<void> _dismissBookingAlert(WidgetTester tester) async {
+  final ok = find.text('Entendido');
+  if (ok.evaluate().isEmpty) return;
+  await tester.tap(ok);
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
+
+  const serviceId = '11111111-1111-4111-8111-111111111111';
+
+  Future<void> useScreen(WidgetTester tester, {String route = '/'}) async {
+    tester.platformDispatcher.defaultRouteNameTestValue = route;
+    addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+    // The Ahem test font overflows rows that fit with the real font: layout is checked in the browser.
+    final original = FlutterError.onError;
+    FlutterError.onError = (details) {
+      if (!details.exceptionAsString().contains('overflowed')) {
+        original?.call(details);
+      }
+    };
+    addTearDown(() => FlutterError.onError = original);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 2400);
+    addTearDown(tester.view.reset);
+  }
+
+  Future<void> tapText(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> bookInDemo(WidgetTester tester) async {
+    await useScreen(tester);
+    await tester.pumpWidget(
+      MedicalBookingApp(
+        dependencies: AppDependencies.demo(latency: Duration.zero),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('INICIAR SESIÓN'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
+    await tester.pumpAndSettle();
+    await tapText(tester, find.text('Agendar nueva cita'));
+    await tapText(tester, find.text('Consulta médica'));
+    await tapText(tester, find.widgetWithText(ChoiceChip, 'Medicina general'));
+    await tapText(tester, find.text('Dr. Andrés Mora'));
+    await tapText(
+      tester,
+      find
+          .descendant(
+            of: find.byType(SlotPicker),
+            matching: find.byType(ChoiceChip),
+          )
+          .at(1),
+    );
+    await tapText(
+      tester,
+      find
+          .descendant(
+            of: find.byType(SlotPicker),
+            matching: find.byType(OutlinedButton),
+          )
+          .first,
+    );
+    await tapText(tester, find.text('Continuar'));
+    await tapText(tester, find.text('Confirmar reserva'));
+    await _dismissBookingAlert(tester);
+    expect(find.text('Pago pendiente'), findsOneWidget);
+    await tapText(tester, find.text('Pagar ahora'));
+    // The card form is drawn inside a Medilo modal, not on another page.
+    expect(find.text('Pagar cita'), findsOneWidget);
+  }
+
+  Future<void> submitPayment(WidgetTester tester) async {
+    await tapText(tester, find.textContaining('Pagar \$'));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> chooseTestCard(WidgetTester tester, String name) async {
+    await tapText(tester, find.byType(DropdownButtonFormField<int>));
+    await tapText(tester, find.text(name).last);
+  }
+
+  testWidgets(
+    'demo: filtering appointments that do not exist says so and offers a way back',
+    (tester) async {
+      await useScreen(tester);
+      await tester.pumpWidget(
+        MedicalBookingApp(
+          dependencies: AppDependencies.demo(latency: Duration.zero),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
+
+      await tapText(tester, find.widgetWithText(FilterChip, 'Por pagar'));
+
+      expect(
+        find.textContaining('No tienes citas en "Por pagar"'),
+        findsOneWidget,
+      );
+      await tapText(tester, find.text('Ver todas'));
+      expect(find.textContaining('No tienes citas en'), findsNothing);
+      expect(find.text('Confirmada'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'demo: the saved card is preselected and paying with it confirms the appointment',
+    (tester) async {
+      await bookInDemo(tester);
+
+      expect(
+        find.textContaining('Pagar con VISA •••• 4242 · vence 09/28'),
+        findsOneWidget,
+      );
+      expect(find.text('Usar otra tarjeta'), findsOneWidget);
+      expect(find.textContaining('Simulación'), findsOneWidget);
+
+      await submitPayment(tester);
+      expect(find.text('Pago enviado'), findsOneWidget);
+      await tapText(tester, find.text('Volver a mi portal'));
+
+      expect(find.text('Pago pendiente'), findsNothing);
+      expect(find.text('Pagar ahora'), findsNothing);
+      expect(find.textContaining('Pago enviado. Tu cita'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'demo: a paid appointment that is cancelled can ask for a refund, which stays "requested" and cannot be asked twice',
+    (tester) async {
+      await bookInDemo(tester);
+      await submitPayment(tester);
+      await tapText(tester, find.text('Volver a mi portal'));
+      // Nothing to refund while the appointment is still active.
+      expect(find.text('Pedir reembolso'), findsNothing);
+
+      await tapText(tester, find.text('Cancelar cita').first);
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Cancelar cita'),
+      );
+      await tapText(tester, find.text('Pedir reembolso').first);
+      expect(
+        find.textContaining(
+          'Se devuelve el pago completo de esta cita. El banco puede tardar en acreditarlo.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Solo se reembolsan las cancelaciones hechas con 48 horas',
+        ),
+        findsOneWidget,
+      );
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Pedir reembolso'),
+      );
+
+      expect(find.textContaining('Pedimos tu reembolso'), findsOneWidget);
+      expect(find.textContaining('reembolsado'), findsNothing);
+
+      await tapText(tester, find.text('Pedir reembolso').first);
+      await tapText(
+        tester,
+        find.widgetWithText(GradientButton, 'Pedir reembolso'),
+      );
+      expect(
+        find.text('Ya hay un reembolso en curso para este pago.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'demo: a declined card is explained in Spanish and the form keeps what the patient chose',
+    (tester) async {
+      await bookInDemo(tester);
+      await tapText(tester, find.text('Usar otra tarjeta'));
+      await chooseTestCard(tester, 'Fondos insuficientes');
+
+      await submitPayment(tester);
+
+      expect(
+        find.textContaining(
+          'Tu pago fue rechazado: la tarjeta no tiene fondos suficientes',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Payment declined'), findsNothing);
+      expect(find.text('Pago enviado'), findsNothing);
+      // Nothing was cleared: the chosen test card is still selected.
+      expect(find.text('Fondos insuficientes'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'demo: a card from the 3D Secure test is refused with its own message',
+    (tester) async {
+      await bookInDemo(tester);
+      await tapText(tester, find.text('Usar otra tarjeta'));
+      await chooseTestCard(tester, 'Exige 3D Secure');
+
+      await submitPayment(tester);
+
+      expect(
+        find.textContaining('autenticación adicional (3D Secure)'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'demo: the save box is off by default, and ticking it replaces the card on file',
+    (tester) async {
+      await bookInDemo(tester);
+      await tapText(tester, find.text('Usar otra tarjeta'));
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isFalse,
+      );
+      expect(
+        find.textContaining(
+          'autorizas guardar tu tarjeta de forma segura con Stripe',
+        ),
+        findsOneWidget,
+      );
+
+      await tapText(tester, find.byType(CheckboxListTile));
+      await submitPayment(tester);
+      await tapText(tester, find.text('Volver a mi portal'));
+      await tapText(tester, find.text('Pagos'));
+
+      expect(find.textContaining('4242'), findsOneWidget);
+      expect(
+        find.textContaining('12/${(DateTime.now().year + 2) % 100}'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  group('API mode', () {
+    late List<String> calls;
+    late int checkoutStatus;
+    var embedded = false;
+    String? checkoutConflict;
+    Uri? opened;
+
+    Future<void> bookAndOpenPortal(WidgetTester tester) async {
+      calls = [];
+      opened = null;
+      final backend = MockClient((request) async {
+        calls.add('${request.method} ${request.url.path}');
+        // "Verificar pago" asks the backend to settle the attempt (POST .../checkout-status/reconcile); the
+        // status read (GET .../checkout-status) has the same answer shape.
+        if (request.url.path.endsWith('/checkout-status') ||
+            request.url.path.endsWith('/checkout-status/reconcile')) {
+          final confirmed = checkoutConflict == 'The invoice is already paid';
+          return _json({
+            'pago_id': 'p-1',
+            'estado': confirmed ? 'CONFIRMADO' : 'PENDIENTE',
+            'reintentos_realizados': 0,
+            'reintentos_maximos': 3,
+            'reintentos_agotados': false,
+          }, 200);
+        }
+        switch (request.url.path) {
+          case '/api/v1/auth/login':
+            return _json({
+              'access_token': 'jwt',
+              'token_type': 'Bearer',
+              'expires_in': 900,
+            }, 200);
+          case '/api/v1/me':
+            return _json({
+              'id': 'u1',
+              'roles': ['PACIENTE'],
+              'permissions': ['citas.reservar'],
+            }, 200);
+          case '/api/v1/specialties':
+            return _json({
+              'items': [
+                {'id': 1, 'nombre': 'Medicina general', 'descripcion': null},
+              ],
+            }, 200);
+          case '/api/v1/doctors':
+            return _json({
+              'items': [
+                {
+                  'id': 'doc-1',
+                  'nombre': 'Dr. Andrés Mora',
+                  'especialidades': [
+                    {'id': 1, 'nombre': 'Medicina general'},
+                  ],
+                  'duracion_cita_min': 30,
+                },
+              ],
+            }, 200);
+          case '/api/v1/availability':
+            final start = DateTime.now()
+                .toUtc()
+                .add(const Duration(days: 1))
+                .copyWith(
+                  hour: 14,
+                  minute: 0,
+                  second: 0,
+                  millisecond: 0,
+                  microsecond: 0,
+                );
+            return _json({
+              'items': [
+                {
+                  'horario_id': 'slot-1',
+                  'medico_id': 'doc-1',
+                  'inicio_utc': start.toIso8601String(),
+                  'fin_utc': start
+                      .add(const Duration(minutes: 30))
+                      .toIso8601String(),
+                },
+              ],
+            }, 200);
+          case '/api/v1/appointments':
+            if (request.method == 'GET') {
+              final start = DateTime.now().toUtc().add(const Duration(days: 1));
+              return _json({
+                'items': [
+                  {
+                    'id': 'cita-1',
+                    'estado': 'PENDIENTE_PAGO',
+                    'inicio': start.toIso8601String(),
+                    'fin': start
+                        .add(const Duration(minutes: 20))
+                        .toIso8601String(),
+                  },
+                ],
+              }, 200);
+            }
+            return _json({'id': 'cita-1', 'estado': 'PENDIENTE_PAGO'}, 201);
+          case '/api/v1/lab/orders':
+            return _json({'items': []}, 200);
+          case '/api/v1/me/payment-methods':
+            return _json({'items': []}, 200);
+          case '/api/v1/invoices':
+            return _json({
+              'id': 'inv-1',
+              'estado': 'PENDIENTE',
+              'total': '8.00',
+              'moneda': 'USD',
+            }, 201);
+          case '/api/v1/payments/checkout':
+            if (checkoutConflict != null) {
+              return _json({
+                'detail': checkoutConflict,
+                'correlation_id': 'c-9',
+              }, 409);
+            }
+            if (embedded) {
+              return _json({
+                'pago_id': 'p-1',
+                'client_secret': 'cs_test_x_secret_y',
+                'publishable_key': 'pk_test_z',
+              }, 201);
+            }
+            return checkoutStatus == 201
+                ? _json({
+                    'pago_id': 'p-1',
+                    'checkout_url':
+                        'https://checkout.stripe.com/c/pay/cs_test_1',
+                  }, 201)
+                : _json({
+                    'detail': 'Payment provider is not configured',
+                    'correlation_id': 'c-9',
+                  }, checkoutStatus);
+        }
+        return _json({'detail': 'unexpected'}, 404);
+      });
+      await tester.pumpWidget(
+        MedicalBookingApp(
+          dependencies: AppDependencies.api(
+            apiBaseUrl: 'http://api.test/api/v1',
+            client: backend,
+            store: MemorySessionStore(),
+            services: const [
+              MedicalService(
+                id: serviceId,
+                name: 'Toma de muestra',
+                durationMin: 20,
+                basePrice: 8,
+              ),
+            ],
+            openPage: (uri) => opened = uri,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('INICIAR SESIÓN'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Correo electrónico'),
+        'paciente@demo.test',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Contraseña'),
+        'whatever',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
+      await tapText(tester, find.text('Agendar nueva cita'));
+      // A lab sample has no specialty or doctor: the times come straight after the service.
+      await tapText(
+        tester,
+        find
+            .descendant(
+              of: find.byType(SlotPicker),
+              matching: find.byType(ChoiceChip),
+            )
+            .at(1),
+      );
+      await tapText(
+        tester,
+        find
+            .descendant(
+              of: find.byType(SlotPicker),
+              matching: find.byType(OutlinedButton),
+            )
+            .first,
+      );
+      await tapText(tester, find.text('Continuar'));
+      await tapText(tester, find.text('Confirmar reserva'));
+    await _dismissBookingAlert(tester);
+    }
+
+    testWidgets(
+      'an embedded answer opens the form in a modal and does not leave the portal',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        embedded = true;
+        addTearDown(() => embedded = false);
+        await bookAndOpenPortal(tester);
+
+        await tapText(tester, find.text('Pagar ahora'));
+
+        expect(find.text('Pagar cita'), findsOneWidget);
+        expect(opened, isNull);
+        // Stripe's own form is not mounted yet: the portal says so and offers no payment button.
+        expect(
+          find.textContaining('todavía no está integrado'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Pagar \$'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a payment already started is verified instead of paid again, and a paid one is confirmed',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        embedded = true;
+        addTearDown(() {
+          embedded = false;
+          checkoutConflict = null;
+        });
+        await bookAndOpenPortal(tester);
+        await tapText(tester, find.text('Pagar ahora'));
+        await tapText(tester, find.byIcon(Icons.close));
+
+        // The invoice exists now: paying again is not offered, verifying is.
+        expect(find.text('Pagar ahora'), findsNothing);
+        expect(find.text('Verificar pago'), findsWidgets);
+
+        // The backend asked Stripe and the session was paid.
+        checkoutConflict = 'The invoice is already paid';
+        await tapText(tester, find.text('Verificar pago').first);
+        expect(find.textContaining('Tu pago está confirmado'), findsWidgets);
+        // The backend does not move the appointment itself, so the card shows the payment as confirmed.
+        expect(find.text('Pago confirmado'), findsWidgets);
+        expect(find.text('Verificar pago'), findsNothing);
+        expect(find.text('Pagar ahora'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'verifying a payment Stripe has not settled says it is still being confirmed',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        embedded = true;
+        addTearDown(() {
+          embedded = false;
+          checkoutConflict = null;
+        });
+        await bookAndOpenPortal(tester);
+        await tapText(tester, find.text('Pagar ahora'));
+        await tapText(tester, find.byIcon(Icons.close));
+
+        checkoutConflict = 'The payment is still being processed';
+        await tapText(tester, find.text('Verificar pago').first);
+        expect(
+          find.textContaining('Estamos confirmando tu pago'),
+          findsWidgets,
+        );
+        expect(find.text('Pagar ahora'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'paying invoices the appointment and sends the patient to the Stripe page',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 201;
+        await bookAndOpenPortal(tester);
+
+        await tapText(tester, find.text('Pagar ahora'));
+
+        expect(
+          opened,
+          Uri.parse('https://checkout.stripe.com/c/pay/cs_test_1'),
+        );
+        expect(
+          calls,
+          containsAllInOrder([
+            'POST /api/v1/invoices',
+            'POST /api/v1/payments/checkout',
+          ]),
+        );
+      },
+    );
+
+    testWidgets(
+      'when the provider is not available it says so in Spanish and keeps the appointment',
+      (tester) async {
+        await useScreen(tester);
+        checkoutStatus = 503;
+        await bookAndOpenPortal(tester);
+
+        await tapText(tester, find.text('Pagar ahora'));
+
+        expect(opened, isNull);
+        expect(
+          find.textContaining('El pago en línea no está disponible'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('c-9'), findsNothing);
+        expect(find.textContaining('not configured'), findsNothing);
+        expect(find.text('Pagar ahora'), findsOneWidget);
+      },
+    );
+  });
+
+  group('return from the payment page', () {
+    Future<void> openAt(WidgetTester tester, String route) async {
+      await useScreen(tester, route: route);
+      await tester.pumpWidget(
+        MedicalBookingApp(
+          dependencies: AppDependencies.demo(latency: Duration.zero),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'success without a confirmed payment says an error happened and the payment was not completed',
+      (tester) async {
+        await openAt(tester, '/pago/exito');
+
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(
+          find.textContaining('El pago no se ha completado'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('confirmado'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the return of the embedded Stripe page (with its session id) without a confirmed payment is an error too',
+      (tester) async {
+        await openAt(tester, '/pago/retorno?session_id=cs_test_123');
+
+        expect(find.text('Ocurrió un error'), findsOneWidget);
+        expect(
+          find.textContaining('El pago no se ha completado'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('cs_test_123'), findsNothing);
+      },
+    );
+
+    testWidgets('cancelled says nothing was charged', (tester) async {
+      await openAt(tester, '/pago/cancelado');
+
+      expect(find.text('Cancelaste el pago'), findsOneWidget);
+      expect(find.textContaining('No se cobró nada'), findsOneWidget);
+    });
+  });
+}

@@ -1,0 +1,133 @@
+import 'package:medicalbooking_portal/core/domain/app_error.dart';
+import 'package:medicalbooking_portal/features/booking/domain/entities/appointment.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_start.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/checkout_status.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/refund.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/payment_source.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
+import 'package:medicalbooking_portal/features/payments/domain/repositories/payment_repository.dart';
+import 'package:medicalbooking_portal/infrastructure/demo/demo_database.dart';
+
+/// Demo: opens a made-up in-portal card form and plays the backend's part when it is submitted: it declines
+/// the way Stripe's test cards do, saves the card when asked, and confirms the appointment like the webhook.
+class DemoPaymentRepository implements PaymentRepository {
+  DemoPaymentRepository(this._db);
+
+  final DemoDatabase _db;
+
+  /// Appointments paid in this demo session, and the ones already refunded.
+  final Set<String> _paid = {};
+  final Set<String> _refunded = {};
+
+  @override
+  bool knowsPayment(String appointmentId) => _paid.contains(appointmentId);
+
+  @override
+  Future<CheckoutStatus?> latestAttempt({required String patientId}) async {
+    if (_paid.isEmpty) return null;
+    return checkoutStatus(patientId: patientId, appointmentId: _paid.last);
+  }
+
+  /// The demo has no provider to ask: its payments are confirmed when they are made, so the status is the answer.
+  @override
+  Future<CheckoutStatus> reconcileCheckout({required String patientId, required String appointmentId}) =>
+      checkoutStatus(patientId: patientId, appointmentId: appointmentId);
+
+  @override
+  Future<CheckoutStatus> checkoutStatus({required String patientId, required String appointmentId}) async {
+    await _db.simulateLatency();
+    if (!_paid.contains(appointmentId)) throw const AppError(ErrorKind.notFound, 'no checkout attempt yet', status: 404);
+    return CheckoutStatus(
+      paymentId: 'pay-$appointmentId',
+      state: CheckoutState.confirmed,
+      retriesDone: 0,
+      retriesMax: 5,
+      retriesExhausted: false,
+    );
+  }
+
+  /// The demo settles a refund at once, so its status is always final.
+  @override
+  Future<String?> refundStatus({required String patientId, required String appointmentId}) async =>
+      'PROCESADO';
+
+  /// Plays the backend's rules: only a cancelled, paid appointment, and one active refund per payment.
+  @override
+  Future<Refund> requestRefund({
+    required String patientId,
+    required String appointmentId,
+    required RefundReason reason,
+    String? text,
+    String? paymentId,
+  }) async {
+    await _db.simulateLatency();
+    final appointment = _db.appointments.where((a) => a.id == appointmentId && a.patientId == patientId).firstOrNull;
+    if (appointment == null || !_paid.contains(appointmentId)) throw const AppError(ErrorKind.notFound, 'not found', status: 404);
+    if (appointment.status != AppointmentStatus.cancelled) throw const AppError(ErrorKind.conflict, 'CITA_NO_CANCELADA', status: 409);
+    if (!_refunded.add(appointmentId)) throw const AppError(ErrorKind.conflict, 'REEMBOLSO_EXISTENTE', status: 409);
+    return Refund(
+      id: 'refund-$appointmentId',
+      paymentId: 'pay-$appointmentId',
+      state: RefundState.pending,
+      amount: appointment.service.basePrice.toStringAsFixed(2),
+      reason: reason.code,
+      requestedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<CheckoutStart> startCheckout({required String patientId, required String appointmentId}) async {
+    await _db.simulateLatency();
+    _find(patientId, appointmentId);
+    return const Embedded(clientSecret: 'cs_test_mock_secret', publishableKey: 'pk_test_mock');
+  }
+
+  /// Pays with the chosen [source]. Throws an [AppError] shaped like the backend's 400s.
+  Future<void> payWithCard({
+    required String patientId,
+    required String appointmentId,
+    required PaymentSource source,
+  }) async {
+    await _db.simulateLatency();
+    final index = _find(patientId, appointmentId);
+    switch (source) {
+      case SavedCardSource():
+        if (_db.savedCardOf(patientId) == null) {
+          throw const AppError(ErrorKind.validation, 'No tienes una tarjeta guardada', status: 400);
+        }
+      case NewCardSource(:final paymentMethodId, :final save):
+        _declineLikeStripe(paymentMethodId);
+        if (save) {
+          _db.setSavedCard(
+            patientId,
+            SavedCard(id: 'pm_demo_new', brand: 'VISA', last4: '4242', expMonth: 12, expYear: DateTime.now().year + 2),
+          );
+        }
+    }
+    _paid.add(appointmentId);
+    // What the signed webhook does in the real system.
+    _db.appointments[index] = _db.appointments[index].copyWith(status: AppointmentStatus.confirmed);
+  }
+
+  /// Stripe's test payment methods and how they fail.
+  void _declineLikeStripe(String paymentMethodId) {
+    final reason = switch (paymentMethodId) {
+      final id when id.contains('InsufficientFunds') => 'Payment declined: Your card has insufficient funds.',
+      final id when id.contains('ExpiredCard') => 'Payment declined: Your card has expired.',
+      final id when id.contains('threeDSecure') => 'Payment declined: Your card requires 3D Secure authentication.',
+      final id when id.contains('chargeDeclined') => 'Payment declined: Your card was declined.',
+      _ => null,
+    };
+    if (reason != null) throw AppError(ErrorKind.validation, reason, status: 400);
+  }
+
+  int _find(String patientId, String appointmentId) {
+    final index = _db.appointments.indexWhere((a) => a.id == appointmentId && a.patientId == patientId);
+    // Like the real API: a missing appointment and someone else's look the same.
+    if (index < 0) throw const AppError(ErrorKind.forbidden, 'not found or not yours');
+    if (_db.appointments[index].status != AppointmentStatus.pendingPayment) {
+      throw const AppError(ErrorKind.conflict, 'not payable', status: 409);
+    }
+    return index;
+  }
+}

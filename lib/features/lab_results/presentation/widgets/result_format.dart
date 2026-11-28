@@ -1,6 +1,15 @@
+import 'package:medicalbooking_portal/core/format/es_format.dart';
+import 'package:medicalbooking_portal/core/time/branch_time.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 
-String _trim(double? v) => v == null ? '—' : (v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString());
+/// Human title for an order; the technical id never reaches the screen.
+String orderTitle(LabOrder order) => order.orderedAt == null
+    ? 'Orden de laboratorio'
+    : 'Orden del ${dayLabel(branchTime(order.orderedAt!))}';
+
+String _trim(double? v) => v == null
+    ? '—'
+    : (v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString());
 
 String valueLabel(AnalyteResult r) {
   final value = r.valueText ?? _trim(r.valueNumeric);

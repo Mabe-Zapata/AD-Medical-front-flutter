@@ -4,6 +4,7 @@ import 'package:medicalbooking_portal/features/booking/domain/entities/appointme
 import 'package:medicalbooking_portal/features/booking/domain/entities/time_slot.dart';
 import 'package:medicalbooking_portal/features/catalog/domain/entities/catalog.dart';
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
+import 'package:medicalbooking_portal/features/payments/domain/entities/saved_card.dart';
 
 /// In-memory stand-in for the REST API, shaped like the backend schema.
 /// Repositories in each feature's data layer read and write through it.
@@ -26,16 +27,45 @@ class DemoDatabase {
   /// Simulated network round trip.
   final Duration latency;
 
+  final Map<String, SavedCard?> _savedCards = {};
+
+  /// Every demo patient starts with a card on file; saving, replacing or removing it lasts for the session.
+  SavedCard? savedCardOf(String patientId) => _savedCards.containsKey(patientId)
+      ? _savedCards[patientId]
+      : const SavedCard(id: 'pm_demo', brand: 'VISA', last4: '4242', expMonth: 9, expYear: 2028);
+
+  void setSavedCard(String patientId, SavedCard? card) => _savedCards[patientId] = card;
+
   final branches = const [
-    Branch(id: 'branch-central', name: 'Laboratorio Central', address: 'Av. Principal 123 y Calle 5, Quito'),
-    Branch(id: 'branch-north', name: 'Sede Norte', address: 'Av. del Parque 480, Quito'),
+    // Approximate coordinates for Quito: verify each one against the real branch before production.
+    Branch(
+      id: 'branch-central',
+      name: 'Laboratorio Central',
+      address: 'Av. Principal 123 y Calle 5, Quito',
+      latitude: -0.2201,
+      longitude: -78.5123,
+    ),
+    Branch(
+      id: 'branch-north',
+      name: 'Sede Norte',
+      address: 'Av. del Parque 480, Quito',
+      latitude: -0.1836,
+      longitude: -78.4840,
+    ),
   ];
 
   final services = const [
     MedicalService(id: 'svc-blood', name: 'Toma de muestra de sangre', durationMin: 20, basePrice: 8),
     MedicalService(id: 'svc-urine', name: 'Toma de muestra de orina y heces', durationMin: 15, basePrice: 6),
-    MedicalService(id: 'svc-consult', name: 'Consulta médica', durationMin: 30, basePrice: 25),
-    MedicalService(id: 'svc-review', name: 'Revisión de resultados con el médico', durationMin: 20, basePrice: 15),
+    MedicalService(id: 'svc-consult', name: 'Consulta médica', durationMin: 30, basePrice: 25, specialtyId: 1),
+    MedicalService(id: 'svc-hema', name: 'Consulta de hematología', durationMin: 30, basePrice: 30, specialtyId: 2),
+    MedicalService(
+      id: 'svc-review',
+      name: 'Revisión de resultados con el médico',
+      durationMin: 20,
+      basePrice: 15,
+      requiresOrder: true,
+    ),
   ];
 
   final testTypes = const [
@@ -58,6 +88,8 @@ class DemoDatabase {
     documentType: 'CEDULA',
     documentNumber: '1712345678',
     birthDate: DateTime(1990, 4, 12),
+    roles: const ['PACIENTE'],
+    permissions: const ['citas.reservar', 'citas.leer_propias', 'resultados.leer_propios'],
   );
 
   final appointments = <Appointment>[];
@@ -94,6 +126,18 @@ class DemoDatabase {
     endUtc: startUtc.add(const Duration(minutes: 30)),
     status: status,
   );
+
+  /// A demo slot of [doctorId]: the same time can exist for two doctors, so the id includes the doctor.
+  TimeSlot slotForDoctor(DateTime day, int hour, int minute, {required String doctorId}) {
+    final base = slotAt(day, hour, minute);
+    return TimeSlot(
+      id: '$doctorId-${base.id}',
+      startUtc: base.startUtc,
+      endUtc: base.endUtc,
+      status: base.status,
+      doctorId: doctorId,
+    );
+  }
 
   void _seed() {
     final today = branchToday();
@@ -133,6 +177,7 @@ class DemoDatabase {
           id: 'ORD-0501',
           patientId: patient.id,
           doctorName: 'Dr. Andrés Mora',
+          doctorId: 'demo-doctor-1',
           orderedAt: sampled.subtract(const Duration(hours: 1)),
           priority: OrderPriority.normal,
           status: OrderStatus.completed,
@@ -168,6 +213,7 @@ class DemoDatabase {
           id: 'ORD-0502',
           patientId: patient.id,
           doctorName: 'Dr. Andrés Mora',
+          doctorId: 'demo-doctor-1',
           orderedAt: now.subtract(const Duration(days: 1)),
           priority: OrderPriority.normal,
           status: OrderStatus.inProgress,
