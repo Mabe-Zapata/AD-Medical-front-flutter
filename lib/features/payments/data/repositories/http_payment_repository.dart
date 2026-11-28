@@ -71,6 +71,19 @@ class HttpPaymentRepository implements PaymentRepository {
     final trail = _trails[appointmentId];
     if (trail == null) throw const AppError(ErrorKind.notFound, 'no invoice known for this appointment');
     final json = await _api.get('/invoices/${trail.invoiceId}/checkout-status') as Map<String, dynamic>;
+    return _statusFrom(json, appointmentId, trail);
+  }
+
+  @override
+  Future<CheckoutStatus> reconcileCheckout({required String patientId, required String appointmentId}) async {
+    final trail = _trails[appointmentId];
+    if (trail == null) throw const AppError(ErrorKind.notFound, 'no invoice known for this appointment');
+    final json =
+        await _api.post('/invoices/${trail.invoiceId}/checkout-status/reconcile') as Map<String, dynamic>;
+    return _statusFrom(json, appointmentId, trail);
+  }
+
+  CheckoutStatus _statusFrom(Map<String, dynamic> json, String appointmentId, PaymentTrail trail) {
     final paymentId = json['pago_id'] as String;
     _remember(appointmentId, (invoiceId: trail.invoiceId, key: trail.key, paymentId: paymentId));
     final next = json['proximo_reintento_en'];

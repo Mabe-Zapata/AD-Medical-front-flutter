@@ -21,6 +21,7 @@ import 'package:medicalbooking_portal/features/portal/presentation/widgets/summa
 import 'package:medicalbooking_portal/features/lab_results/domain/entities/lab_order.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/order_card.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_dialog.dart';
+import 'package:medicalbooking_portal/shared/presentation/molecules/sweet_alert.dart';
 import 'package:medicalbooking_portal/features/lab_results/presentation/widgets/results_pdf_preview.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/controllers/portal_controller.dart';
 import 'package:medicalbooking_portal/features/portal/presentation/widgets/profile_summary.dart';
@@ -210,6 +211,7 @@ class _PortalPageState extends State<PortalPage> {
       cancelAppointment: deps.cancelAppointment,
       startCheckout: deps.startCheckout,
       getCheckoutStatus: deps.getCheckoutStatus,
+      reconcileCheckout: deps.reconcileCheckout,
       requestRefund: deps.requestRefund,
       getRefundStatus: deps.getRefundStatus,
       getSavedCard: deps.getSavedCard,
@@ -224,12 +226,13 @@ class _PortalPageState extends State<PortalPage> {
     if (id == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Reserva $id creada. Tu horario se retiene ${Appointment.reservationHold.inMinutes} minutos.',
-          ),
-        ),
+      // The booking id is internal: the patient reads what to do next, never the technical code.
+      showSweetAlert(
+        context,
+        title: 'Reserva creada',
+        message:
+            'Tu horario se retiene ${Appointment.reservationHold.inMinutes} minutos. Paga la cita antes de que venza para confirmarla.',
+        tone: AlertTone.success,
       );
     });
   }
@@ -243,7 +246,6 @@ class _PortalPageState extends State<PortalPage> {
   /// Fetches the results of [order] as a PDF and shows it in a preview, where it can also be downloaded.
   Future<void> _openResultsPdf(LabOrder order) async {
     final deps = AppScope.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final fileName = 'resultados-${order.id.substring(0, 8)}.pdf';
     try {
       final bytes = await deps.downloadResultsReport(order.id);
@@ -254,7 +256,13 @@ class _PortalPageState extends State<PortalPage> {
         fileName: fileName,
       );
     } catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(resultsReportFailureMessage(error))));
+      if (!mounted) return;
+      await showSweetAlert(
+        context,
+        title: 'Informe no disponible',
+        message: resultsReportFailureMessage(error),
+        tone: AlertTone.warning,
+      );
     }
   }
 

@@ -18,6 +18,14 @@ http.Response _json(Object body, int status) => http.Response(
   headers: {'content-type': 'application/json'},
 );
 
+/// The booking confirmation is a SweetAlert popup: the patient closes it before paying, so the test does too.
+Future<void> _dismissBookingAlert(WidgetTester tester) async {
+  final ok = find.text('Entendido');
+  if (ok.evaluate().isEmpty) return;
+  await tester.tap(ok);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
@@ -82,6 +90,7 @@ void main() {
     );
     await tapText(tester, find.text('Continuar'));
     await tapText(tester, find.text('Confirmar reserva'));
+    await _dismissBookingAlert(tester);
     expect(find.text('Pago pendiente'), findsOneWidget);
     await tapText(tester, find.text('Pagar ahora'));
     // The card form is drawn inside a Medilo modal, not on another page.
@@ -274,8 +283,10 @@ void main() {
       opened = null;
       final backend = MockClient((request) async {
         calls.add('${request.method} ${request.url.path}');
-        // "Verificar pago" reads the checkout status from the backend (GET .../checkout-status).
-        if (request.url.path.endsWith('/checkout-status')) {
+        // "Verificar pago" asks the backend to settle the attempt (POST .../checkout-status/reconcile); the
+        // status read (GET .../checkout-status) has the same answer shape.
+        if (request.url.path.endsWith('/checkout-status') ||
+            request.url.path.endsWith('/checkout-status/reconcile')) {
           final confirmed = checkoutConflict == 'The invoice is already paid';
           return _json({
             'pago_id': 'p-1',
@@ -448,6 +459,7 @@ void main() {
       );
       await tapText(tester, find.text('Continuar'));
       await tapText(tester, find.text('Confirmar reserva'));
+    await _dismissBookingAlert(tester);
     }
 
     testWidgets(
